@@ -14,12 +14,13 @@ for(let bus = 0; bus <= 6; bus++){
     // Bus level
     let bus_cc = 83;
     let bus_ch = bus;
+    let bus_id = BUS_NAMES[bus].toLowerCase().replace(" ", "_");
     if (bus == 0){
         bus_cc = 84;
         bus_ch = 11;
     }
     control_map.push({
-        "id": `${BUS_NAMES[bus].toLowerCase().replace(" ", "_")}_level`,
+        "id": `${bus_id}_level`,
         "name": `${BUS_NAMES[bus]} Level`,
         "cc": bus_cc,
         "ch": bus_ch,
@@ -33,7 +34,7 @@ for(let bus = 0; bus <= 6; bus++){
     // Channel 1-16: Mono
     for(let ch = 1; ch <= 16; ch++){
         control_map.push({
-            "id": `bus_${bus}_channel_${ch}_level`,
+            "id": `${bus_id}_channel_${ch}_level`,
             "name": `${BUS_NAMES[bus]} Channel ${ch} Level`,
             "cc": 60 + bus * 2,
             "ch": ch,
@@ -47,7 +48,7 @@ for(let bus = 0; bus <= 6; bus++){
     // Channel 17-18 + 19-20: Stereo L/R (CC applies to both channels)
     for(let ch = 17; ch <= 19; ch+=2){
         control_map.push({
-            "id": `bus_${bus}_channel_${ch}_level`,
+            "id": `${bus_id}_channel_${ch}_level`,
             "name": `${BUS_NAMES[bus]} Channel ${ch} Level`,
             "cc": 61 + bus * 2,
             "ch": ch-16,
@@ -73,7 +74,7 @@ for(let bus = 0; bus <= 6; bus++){
             efx_ch = efx + ((bus - 5) * 4);
         }
         control_map.push({
-            "id": `bus_${bus}_efx_${efx}_level`,
+            "id": `${bus_id}_efx_${efx}_level`,
             "name": `${BUS_NAMES[bus]} EFX ${efx} Level`,
             "cc": efx_cc,
             "ch": efx_ch,

@@ -6,7 +6,15 @@ var app = {
         connectButton: document.getElementById("connect"),
         disconnectButton: document.getElementById("disconnect"),
         log: document.getElementById("log"),
-        bus_faders: document.getElementById("bus_faders")
+        bus_faders: document.getElementById("bus_faders"),
+        master_faders: document.getElementById("master_faders"),
+        monitor_a_faders: document.getElementById("monitor_a_faders"),
+        monitor_b_faders: document.getElementById("monitor_b_faders"),
+        monitor_c_faders: document.getElementById("monitor_c_faders"),
+        monitor_d_faders: document.getElementById("monitor_d_faders"),
+        monitor_e_faders: document.getElementById("monitor_e_faders"),
+        monitor_f_faders: document.getElementById("monitor_f_faders"),
+        efx_faders: document.getElementById("efx_faders"),
     },
     midi: {},
     map: {},
@@ -20,7 +28,8 @@ app.log = function(message){
 app.load = function(){
     
     for(let bus = 0; bus <= 6; bus++){
-        let control_id = `${BUS_NAMES[bus].toLowerCase().replace(" ", "_")}_level`;
+        let bus_id = BUS_NAMES[bus].toLowerCase().replace(" ", "_");
+        let control_id = `${bus_id}_level`;
         let control = getControlById(control_id);
 
         let container = document.createElement("div");
@@ -29,13 +38,37 @@ app.load = function(){
         let element = createControlElement(control_id);
 
         let label = document.createElement("label");
-        label.textContent = control ? control.name : control_id;
+        label.textContent = control.name.replace(" Level", "");
         label.htmlFor = element.id;
         container.appendChild(label);
         container.appendChild(element);
 
         app.elements.bus_faders.appendChild(container);
+
+        for(let strip = 1; strip <= 17; strip++){
+            let control_id = `${bus_id}_channel_${strip}_level`;
+            let control = getControlById(control_id);
+
+            let container = document.createElement("div");
+            container.classList.add("channel-strip");
+
+            let element = createControlElement(control_id);
+
+            let label = document.createElement("label");
+            label.textContent = strip;
+            label.htmlFor = element.id;
+            container.appendChild(label);
+            container.appendChild(element);
+
+            let faders_container = app.elements[`${bus_id}_faders`];
+            if(faders_container){
+                faders_container.appendChild(container);
+            }
+        }
     }
+
+    
+
     app.log("App loaded");
 }
 

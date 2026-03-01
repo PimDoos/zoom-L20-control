@@ -45,7 +45,8 @@ app.load = function(){
 
         app.elements.bus_faders.appendChild(container);
 
-        for(let strip = 1; strip <= 17; strip++){
+        for(let strip = 1; strip <= 19; strip++){
+            if(strip == 18) continue; // Skip 18, which is the right channel of the stereo pair with 17
             let control_id = `${bus_id}_channel_${strip}_level`;
             let control = getControlById(control_id);
 
@@ -126,6 +127,7 @@ app.handleMidiMessage = function(event){
     let midiData = new Uint8Array(value.buffer);
     let midiMessageData = [];
     let timeStampHeader = midiData[0];
+    console.log(midiData);
     
     for(let i = 1; i < midiData.length; i+=4){
         midiMessageData.push([]);

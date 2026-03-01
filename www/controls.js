@@ -113,6 +113,15 @@ for(let i = 0; i < 4; i++){
         "unit": time_label
     });
 }
+control_map.push({
+    "id": `recorder_playing`,
+    "name": `Recorder Playing`,
+    "cc": 87,
+    "ch": 9,
+    "type": "boolean",
+    "range": [0, 1],
+    "value": [0, 1],
+});
 
 // Storage time remaining
 for(let i = 0; i < 4; i++){
@@ -143,6 +152,16 @@ for(let i = 0; i < 4; i++){
     });
 }
 
+// Presets
+control_map.push({
+    "id": `preset_select`,
+    "name": `Preset Select`,
+    "cc": 86,
+    "ch": 11,
+    "type": "numeric",
+    "range": [0, 8],
+    "value": [1, 9],
+});
 
 // Fast lookup index: key = "ch:cc" -> array of controls (preserves duplicates)
 const CONTROL_INDEX = new Map();
@@ -181,6 +200,11 @@ function writeControlValue(control_id, value){
         app.log(`Unknown control ID: ${control_id}`);
     }
 }
+function writeSystemMessage(bytes){
+    midiMessageData = new Uint8Array([180,180, ...bytes])
+    app.midi.characteristic.writeValue(midiMessageData);
+    app.log(`Sent system message: ${bytes.join(" ")}`);
+}
 
 function createControlElement(control_id){
     const control = control_map.find(c => c.id === control_id);
@@ -203,3 +227,4 @@ function createControlElement(control_id){
     }
     return element;
 }
+

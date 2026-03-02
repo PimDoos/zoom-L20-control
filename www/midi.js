@@ -47,3 +47,7 @@ const MIDI_STATUS = {
     "pitch_bend": 0xE0,
     "system_message": 0xF0
 }
+const MIDI_SYSEX = {
+    "mfg_id": 0x52, // Zoom Corporation
+
+}

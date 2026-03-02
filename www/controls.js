@@ -192,10 +192,36 @@ function getControlById(control_id){
 function writeControlValue(control_id, value){
     const control = control_map.find(c => c.id === control_id);
     if(control){
-        midiMessageData = new Uint8Array([180,180,MIDI_STATUS.control_change | (control.ch - 1), control.cc, value])
-        app.midi.characteristic.writeValue(midiMessageData);
         control_values[control_id] = value;
-        app.log(`Set ${control.name} to ${value}`);
+        // If this page is a client, send control requests to host via WebSocket
+        if(typeof app !== 'undefined' && app.role === 'client'){
+            app.sendWs({type:'control', id: control_id, value: Number(value)});
+            app.log(`Sent ${control.name} -> ${value} (to host)`);
+            return;
+        }
+        // If host or no role set, write to BLE (if available) and broadcast to clients
+        if(typeof app !== 'undefined' && app.role === 'host'){
+            if(app.midi && app.midi.characteristic){
+                midiMessageData = new Uint8Array([180,180,MIDI_STATUS.control_change | (control.ch - 1), control.cc, Number(value)])
+                app.midi.characteristic.writeValue(midiMessageData);
+                app.log(`Set ${control.name} to ${value}`);
+            } else {
+                app.log(`No MIDI characteristic available to write ${control.name}`);
+            }
+            // also broadcast to connected clients
+            if(typeof app !== 'undefined' && app.ws){
+                app.sendWs({type:'control', id: control_id, value: Number(value)});
+            }
+            return;
+        }
+        // Fallback: try to write directly if BLE characteristic exists
+        if(app && app.midi && app.midi.characteristic){
+            midiMessageData = new Uint8Array([180,180,MIDI_STATUS.control_change | (control.ch - 1), control.cc, Number(value)])
+            app.midi.characteristic.writeValue(midiMessageData);
+            control_values[control_id] = value;
+            app.log(`Set ${control.name} to ${value}`);
+            return;
+        }
     } else {
         app.log(`Unknown control ID: ${control_id}`);
     }

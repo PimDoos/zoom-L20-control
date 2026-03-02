@@ -317,6 +317,4 @@ app.handleMidiMessage = function(event){
     }
 }
 
-// TODO add WebRTC support for control from multiple devices
-
 app.load();

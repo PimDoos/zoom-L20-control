@@ -3,11 +3,12 @@ Simple WebApp to control Zoom L20 mixers over BLE
 
 ## Usage
 1. Clone the repository
-2. Install python dependencies: `pip install -r requirements.txt`
-3. Run the websocket server: `python websocket_server.py`
-4. Open `index.html` in a web browser
-5. Connect to the mixer and control it using the web interface
-6. (Optional) Connect additional clients to the websocket server to control the mixer from multiple devices simultaneously
+1. Open `index.html` in a web browser
+1. Connect to the mixer over Bluetooth and control it using the web interface
+1. (Optional) Connect additional clients to the websocket server to control the mixer from multiple devices simultaneously
+    1. Install python dependencies: `pip install -r requirements.txt`
+    1. Run the websocket server: `python websocket_server.py`
+    1. Connect the host and clients to the websocket server
 
 ## Disclaimer
 This project was absolutely vibe-coded and might not be safe or efficient. Use at your own risk.

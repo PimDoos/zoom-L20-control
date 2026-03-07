@@ -1,5 +1,6 @@
-var control_map = [];
-var control_values = {};
+var controls = {};
+
+controls.map = {};
 
 const BUS_NAMES = {
     0: "Master",
@@ -9,7 +10,88 @@ const BUS_NAMES = {
     4: "Monitor D",
     5: "Monitor E",
     6: "Monitor F"
+};
+
+class Controller {
+    constructor(id, displayName, controller_number, channel, value_range, mapped_range, unit = null, default_value = 0){
+        this.id = id; // Controller unique ID
+        this.displayName = displayName; // Controller display name
+        this.controller_number = controller_number; // MIDI CC number
+        this.channel = channel; // MIDI channel
+        this.value_range = value_range;
+        this.mapped_range = mapped_range;
+        this.unit = unit;
+        this.value = default_value; // MIDI value (0-127)
+        this.mapped_value = mapRange(default_value, value_range[0], value_range[1], mapped_range[0], mapped_range[1]); // Value mapped to unit
+    }
+    updateValue(value, source){
+        this.value = value;
+        this.mapped_value = mapRange(value, this.value_range[0], this.value_range[1], this.mapped_range[0], this.mapped_range[1]);
+        this.element.value = value;
+        app.log(`[${source}] ${this.displayName}: ${this.mapped_value.toFixed(1)}${this.unit ? " " + this.unit : ""}`);
+    }
+    writeValue(value){
+        this.updateValue(value, "local");
+        let message = midi.createControlChangeMessage(this.channel, this.controller_number, value);
+        midi.sendMessage(message);
+
+        // Write to WebSocket if connected
+        if(app.ws){
+            app.sendWs({type:'control', id: this.id, value: Number(this.value)});
+        }
+
+        // Write to BLE if connected
+        if(app && app.bleMidi && app.bleMidi.characteristic){
+            let midiData = midi.createControlChangeMessage(this.channel, this.controller_number, value);
+            midi.sendMessage(midiData);
+        }
+        
+    }
+    createElement(type){
+        let element;
+        switch(type){
+            case "fader":
+                element = document.createElement("input");
+                element.type = "range";
+                element.classList.add("fader");
+                element.min = this.value_range[0];
+                element.max = this.value_range[1];
+                element.dataset.controlId = this.id;
+                element.id = `${type}-${this.id}`;
+                element.value = this.value;
+                element.addEventListener("input", function(e){
+                    let control = controls.map[this.dataset.controlId];
+                    control.writeValue(e.target.value);
+                });
+                break;
+        }
+        this.element = element;
+        return element;
+    }
 }
+function mapRange(value, in_min, in_max, out_min, out_max){
+    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+// Returns the first matching control (keeps previous behavior) or null.
+function getControlByCC(controller_number, channel){
+    const key = `${channel}:${controller_number}`;
+    const list = CONTROL_INDEX.get(key);
+    return (list && list.length) ? list[0] : null;
+}
+
+function getControlElementById(control_id){
+    return document.querySelector(`[data-control-id="${control_id}"]`);
+}
+
+function writeSystemMessage(bytes){
+    midiMessageData = new Uint8Array([0x80,0x80, ...bytes])
+    app.midi.characteristic.writeValue(midiMessageData);
+    app.log(`Sent system message: ${bytes.join(" ")}`);
+}
+
+// Create controllers
+
 for(let bus = 0; bus <= 6; bus++){
     // Bus level
     let bus_cc = 83;
@@ -19,70 +101,73 @@ for(let bus = 0; bus <= 6; bus++){
         bus_cc = 84;
         bus_ch = 11;
     }
-    control_map.push({
-        "id": `${bus_id}_level`,
-        "name": `${BUS_NAMES[bus]} Level`,
-        "cc": bus_cc,
-        "ch": bus_ch,
-        "type": "fader",
-        "range": [0, 120],
-        "value": [-100, 10],
-        "unit": "dB"
-    });
+    let control = new Controller(
+        id = `${bus_id}_level`,
+        displayName = `${BUS_NAMES[bus]} Level`,
+        controller_number = bus_cc,
+        channel = bus_ch,
+        value_range = [0, 120],
+        mapped_range = [-100, 10],
+        unit = "dB",
+        default_value = 0
+    );
+    controls.map[control.id] = control;
 
     // Channel strips
     // Channel 1-16: Mono
     for(let ch = 1; ch <= 16; ch++){
-        control_map.push({
-            "id": `${bus_id}_channel_${ch}_level`,
-            "name": `${BUS_NAMES[bus]} Channel ${ch} Level`,
-            "cc": 60 + bus * 2,
-            "ch": ch,
-            "type": "fader",
-            "range": [0, 120],
-            "value": [-100, 10],
-            "unit": "dB"
-        });
+        let control = new Controller(
+            id = `${bus_id}_channel_${ch}_level`,
+            displayName = `${BUS_NAMES[bus]} Channel ${ch} Level`,
+            controller_number = 60 + bus * 2,
+            channel = ch,
+            value_range = [0, 120],
+            mapped_range = [-100, 10],
+            unit = "dB",
+            default_value = 60
+        );
+        controls.map[control.id] = control;
     }
 
     // Channel 17-18 + 19-20: Stereo L/R (CC applies to both channels)
     for(let ch = 17; ch <= 19; ch+=2){
-        control_map.push({
-            "id": `${bus_id}_channel_${ch}_level`,
-            "name": `${BUS_NAMES[bus]} Channel ${ch} Level`,
-            "cc": 61 + bus * 2,
-            "ch": ch-16,
-            "type": "fader",
-            "range": [0, 120],
-            "value": [-100, 10],
-            "unit": "dB"
-        });
+        let control = new Controller(
+            id = `${bus_id}_channel_${ch}_level`,
+            displayName = `${BUS_NAMES[bus]} Channel ${ch} Level`,
+            controller_number = 61 + bus * 2,
+            channel = ch - 16,
+            value_range = [0, 120],
+            mapped_range = [-100, 10],
+            unit = "dB",
+            default_value = 60
+        );
+        controls.map[control.id] = control;
     }
 
     // EFX Returns
     for(let efx = 1; efx <= 2; efx++){
-        let efx_cc, efx_ch;
+        let cc, ch;
         if(bus == 0){
-            efx_cc = 80
-            efx_ch = 12 + efx;
+            cc = 80
+            ch = 12 + efx;
         } else if(bus <= 4){
-            efx_cc = 81;
-            efx_ch = efx + ((bus - 1) * 4);
+            cc = 81;
+            ch = efx + ((bus - 1) * 4);
         
         } else if(bus <= 6){
-            efx_cc = 82;
-            efx_ch = efx + ((bus - 5) * 4);
+            cc = 82;
+            ch = efx + ((bus - 5) * 4);
         }
-        control_map.push({
-            "id": `${bus_id}_efx_${efx}_level`,
-            "name": `${BUS_NAMES[bus]} EFX ${efx} Level`,
-            "cc": efx_cc,
-            "ch": efx_ch,
-            "type": "fader",
-            "range": [0, 120],
-            "value": [-100, 10],
-            "unit": "dB"
-        });
+        let control = new Controller(
+            id = `${bus_id}_channel_${ch}_level`,
+            displayName = `${BUS_NAMES[bus]} EFX ${efx} Level`,
+            controller_number = cc,
+            channel = ch,
+            value_range = [0, 120],
+            mapped_range = [-100, 10],
+            unit = "dB"
+        );
+        controls.map[control.id] = control;
     }
 }
 // Recorder
@@ -102,26 +187,30 @@ for(let i = 0; i < 4; i++){
             time_label = "seconds";
             break;
     }
-    control_map.push({
-        "id": `recorder_time_${time_label}`,
-        "name": `Recorder Time ${time_label}`,
-        "cc": 88,
-        "ch": 9 + i,
-        "type": "numeric",
-        "range": [0, 60],
-        "value": [0, 60],
-        "unit": time_label
-    });
+
+    let control = new Controller(
+        id = `recorder_time_${time_label}`,
+        displayName = `Recorder Time ${time_label}`,
+        controller_number = 88,
+        channel = 9 + i,
+        value_range = [0, 60],
+        mapped_range = [0, 60],
+        unit = time_label
+    );
+    controls.map[control.id] = control;
 }
-control_map.push({
-    "id": `recorder_playing`,
-    "name": `Recorder Playing`,
-    "cc": 87,
-    "ch": 9,
-    "type": "boolean",
-    "range": [0, 1],
-    "value": [0, 1],
-});
+
+let recorder_playing_control = new Controller(
+    id = `recorder_playing`,
+    displayName = `Recorder Playing`,
+    controller_number = 87,
+    channel = 9,
+    value_range = [0, 1],
+    mapped_range = [0, 1],
+    default_value = 0
+);
+controls.map[recorder_playing_control.id] = recorder_playing_control;
+
 
 // Storage time remaining
 for(let i = 0; i < 4; i++){
@@ -140,117 +229,41 @@ for(let i = 0; i < 4; i++){
             time_label = "seconds";
             break;
     }
-    control_map.push({
-        "id": `storage_remaining_${time_label}`,
-        "name": `Storage remaining ${time_label}`,
-        "cc": 88,
-        "ch": 13 + i,
-        "type": "numeric",
-        "range": [0, 60],
-        "value": [0, 60],
-        "unit": time_label
-    });
+    let control = new Controller(
+        id = `storage_remaining_${time_label}`,
+        displayName = `Storage Remaining ${time_label}`,
+        controller_number = 88,
+        channel = 13 + i,
+        value_range = [0, 60],
+        mapped_range = [0, 60],
+        unit = time_label
+    );
+    controls.map[control.id] = control;
 }
 
 // Presets
-control_map.push({
-    "id": `preset_select`,
-    "name": `Preset Select`,
-    "cc": 86,
-    "ch": 11,
-    "type": "numeric",
-    "range": [0, 8],
-    "value": [1, 9],
-});
+let preset_select_control = new Controller(
+    id = `preset_select`,
+    displayName = `Preset Select`,
+    controller_number = 86,
+    channel = 11,
+    value_range = [0, 8],
+    mapped_range = [1, 9]
+);
+controls.map[preset_select_control.id] = preset_select_control;
 
 // Fast lookup index: key = "ch:cc" -> array of controls (preserves duplicates)
 const CONTROL_INDEX = new Map();
 
 function buildControlIndex(){
     CONTROL_INDEX.clear();
-    for(let i = 0; i < control_map.length; i++){
-        const c = control_map[i];
-        const key = `${c.ch}:${c.cc}`;
+    for(let i = 0; i < controls.map.length; i++){
+        let control = controls.map[i];
+        let key = `${control.channel}:${control.controller_number}`;
         if(!CONTROL_INDEX.has(key)) CONTROL_INDEX.set(key, []);
-        CONTROL_INDEX.get(key).push(c);
+        CONTROL_INDEX.get(key).push(control);
     }
 }
 
 // Build index at load time
 buildControlIndex();
-
-// Returns the first matching control (keeps previous behavior) or null.
-function getControlByCC(cc, ch){
-    const key = `${ch}:${cc}`;
-    const list = CONTROL_INDEX.get(key);
-    return (list && list.length) ? list[0] : null;
-}
-function getControlById(control_id){
-    return control_map.find(c => c.id === control_id) || null;
-}
-
-function writeControlValue(control_id, value){
-    const control = control_map.find(c => c.id === control_id);
-    if(control){
-        control_values[control_id] = value;
-        // If this page is a client, send control requests to host via WebSocket
-        if(typeof app !== 'undefined' && app.role === 'client'){
-            app.sendWs({type:'control', id: control_id, value: Number(value)});
-            app.log(`Sent ${control.name} -> ${value} (to host)`);
-            return;
-        }
-        // If host or no role set, write to BLE (if available) and broadcast to clients
-        if(typeof app !== 'undefined' && app.role === 'host'){
-            if(app.midi && app.midi.characteristic){
-                midiMessageData = new Uint8Array([180,180,MIDI_STATUS.control_change | (control.ch - 1), control.cc, Number(value)])
-                app.midi.characteristic.writeValue(midiMessageData);
-                app.log(`Set ${control.name} to ${value}`);
-            } else {
-                app.log(`No MIDI characteristic available to write ${control.name}`);
-            }
-            // also broadcast to connected clients
-            if(typeof app !== 'undefined' && app.ws){
-                app.sendWs({type:'control', id: control_id, value: Number(value)});
-            }
-            return;
-        }
-        // Fallback: try to write directly if BLE characteristic exists
-        if(app && app.midi && app.midi.characteristic){
-            midiMessageData = new Uint8Array([180,180,MIDI_STATUS.control_change | (control.ch - 1), control.cc, Number(value)])
-            app.midi.characteristic.writeValue(midiMessageData);
-            control_values[control_id] = value;
-            app.log(`Set ${control.name} to ${value}`);
-            return;
-        }
-    } else {
-        app.log(`Unknown control ID: ${control_id}`);
-    }
-}
-function writeSystemMessage(bytes){
-    midiMessageData = new Uint8Array([180,180, ...bytes])
-    app.midi.characteristic.writeValue(midiMessageData);
-    app.log(`Sent system message: ${bytes.join(" ")}`);
-}
-
-function createControlElement(control_id){
-    const control = control_map.find(c => c.id === control_id);
-    if(!control) return null;
-
-    let element;
-    switch(control.type){
-        case "fader":
-            element = document.createElement("input");
-            element.type = "range";
-            element.classList.add("fader");
-            element.min = control.range[0];
-            element.max = control.range[1];
-            element.dataset.controlId = control.id;
-            element.value = control_values[control_id] || 0;
-            element.addEventListener("input", function(e){
-                writeControlValue(control_id, e.target.value);
-            });
-            break;
-    }
-    return element;
-}
-

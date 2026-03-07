@@ -26,18 +26,28 @@ body {
 }
 
 div.channel-strip {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
+    display: inline-block;
     margin: 10px;
+    text-align: center;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     background-color: #303030;
 }
+div.channel-strip > label {
+    display: block;
+}
 
 div.channel-strip > input[type="range"].fader {
     writing-mode: vertical-lr; 
     direction: rtl;
-    width: 32px;
+    width: 16px;
+    height: 100px;
+    margin: 0;
+}
+div.channel-strip > meter.peak {
+    writing-mode: vertical-lr; 
+    direction: rtl;
+    width: 16px;
+    height: 100px;
 }

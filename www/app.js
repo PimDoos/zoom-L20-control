@@ -22,7 +22,7 @@ var app = {
         monitor_f_faders: document.getElementById("monitor_f_faders"),
         efx_faders: document.getElementById("efx_faders"),
     },
-    midi: {},
+    bleMidi: {},
     map: {},
 };
 
@@ -54,39 +54,36 @@ app.sendWs = function(obj){
     }
 }
 
-app.handleWsMessage = function(evt){
+app.handleWsMessage = function(event){
     try{
-        const msg = JSON.parse(evt.data);
-        if(msg.type === 'control'){
-            const control = getControlById(msg.id);
+        let message = JSON.parse(event.data);
+        if(message.type === 'control'){
+            let control = controls.map[message.id];
             if(control){
-                control_values[msg.id] = msg.value;
-                const el = document.querySelector(`[data-control-id="${msg.id}"]`);
-                if(el && !el.matches(':active')) el.value = msg.value;
+                // Update UI element locally if exists and not active
+                control.updateValue(message.value, "ws");
 
+                // If this client is the host, also write the change to BLE
                 if(app.role === 'host'){
-                    // If host, also write to BLE
-                    if(app.midi && app.midi.characteristic){
-                        midiMessageData = new Uint8Array([180,180,MIDI_STATUS.control_change | (control.ch - 1), control.cc, Number(msg.value)])
-                        app.midi.characteristic.writeValue(midiMessageData);
-                        app.log(`Set ${control.name} to ${msg.value} (from client)`);
-                    } else {
-                        app.log(`No MIDI characteristic available to write ${control.name} (from client)`);
-                    }
-                } else {
-                    app.log(`Set ${control.name} to ${msg.value} (from host)`);
+                    if(app.bleMidi && app.bleMidi.characteristic){
+                        midiMessageData = midi.createControlChangeMessage(
+                            control.ch, control.cc, Number(message.value)
+                        );
+                        midi.sendMessage(midiMessageData);
+                        
+                    } 
                 }
             }
-        } else if(msg.type === 'full_state'){
+        } else if(message.type === 'full_state'){
             // apply full state
-            for(const id in msg.state){
-                control_values[id] = msg.state[id];
-                const el = document.querySelector(`[data-control-id="${id}"]`);
-                if(el) el.value = msg.state[id];
+            for(let control_id in message.state){
+                let value = message.state[control_id];
+                let control = controls.map[control_id];
+                control.updateValue(value, "ws");
             }
-        } else if(msg.type === 'peers'){
-            if(Array.isArray(msg.peers)){
-                app.updatePeersUI(msg.peers);
+        } else if(message.type === 'peers'){
+            if(Array.isArray(message.peers)){
+                app.updatePeersUI(message.peers);
             }
         }
     } catch(e){
@@ -121,41 +118,149 @@ app.joinNetwork = function(){
         app.log('WebSocket connect error: ' + e);
     }
 }
+
+app.connectBle = function(){
+    app.log("Connecting...");
+    app.setStatus('ble','connecting');
+
+    // Connect to BLE Midi device (with MIDI service UUID)
+    navigator.bluetooth.requestDevice({
+        filters: [{ services: [
+            MIDI_SERVICE_UID
+        ] }]
+    })
+    .then(device => {
+        app.log("Device found: " + device.name);
+        return device.gatt.connect();
+    })
+    .then(server => {
+        app.log("Connected to GATT server");
+        return server.getPrimaryService(MIDI_SERVICE_UID);
+    })
+    .then(service => {
+        app.log("MIDI service found");
+        return service.getCharacteristic(MIDI_IO_CHARACTERISTIC_UID);
+    })
+    .then(characteristic => {
+        app.log("MIDI characteristic found");
+        app.bleMidi.characteristic = characteristic;
+        return characteristic.startNotifications();
+    })
+    .then(() => {
+        app.log("Notifications started");
+        app.bleMidi.characteristic.addEventListener('characteristicvaluechanged', midi.handleData);
+        app.setStatus('ble','connected');
+    })
+    .catch(error => {
+        app.log("Error: " + error);
+        app.setStatus('ble','error');
+    });
+}
+app.elements.connectButton.addEventListener('click', app.connectBle);
+
+app.disconnectBle = function(){
+    let characteristic = app.bleMidi && app.bleMidi.characteristic;
+    if(characteristic){
+        try{ characteristic.stopNotifications(); } catch(e){}
+        try{ characteristic.removeEventListener('characteristicvaluechanged', midi.handleData); } catch(e){}
+        try{ characteristic.service.device.gatt.disconnect(); } catch(e){}
+        app.log("Disconnected");
+        app.setStatus('ble','disconnected');
+    } else {
+        app.log("No device connected");
+        app.setStatus('ble','disconnected');
+    }
+}
+app.elements.disconnectButton.addEventListener('click', app.disconnectBle);
+
+app.updateControlFromMidi = function(message){
+    if(message.status == "control_change"){
+        let control = getControlByCC(message.controller, message.channel);
+        if(control){
+            control.updateValue(message.value, "midi");
+            
+            // If host, also broadcast to clients  
+            if(app.role === 'host' && app.ws && app.ws.readyState === WebSocket.OPEN){
+                app.sendWs({type:'control', id: control.id, value: message.value});
+            }
+        } else {
+            app.log("Unknown control change: ch " + message.channel + " cc " + message.controller + " value " + message.value);
+        }
+    }
+}
+
 app.load = function(){
     
     for(let bus = 0; bus <= 6; bus++){
         let bus_id = BUS_NAMES[bus].toLowerCase().replace(" ", "_");
         let control_id = `${bus_id}_level`;
-        let control = getControlById(control_id);
+        let control = controls.map[control_id];
 
         let container = document.createElement("div");
         container.classList.add("channel-strip","bus");
 
-        let element = createControlElement(control_id);
-
         let label = document.createElement("label");
-        label.textContent = control.name.replace(" Level", "");
-        label.htmlFor = element.id;
+        label.textContent = control.displayName.replace(" Level", "");
+        
         container.appendChild(label);
-        container.appendChild(element);
+
+        let meter = document.createElement("meter");
+        meter.id = `${bus_id}_meter`;
+        meter.classList.add("peak");
+        meter.min = control.value_range[0];
+        meter.max = control.value_range[1];
+        meter.value = 0;
+        container.appendChild(meter);
+
+        let fader = control.createElement("fader");
+        label.htmlFor = fader.id;
+
+        container.appendChild(fader);
+
+        let valueLabel = document.createElement("label");
+        valueLabel.textContent = `-100 ${control.unit}`;
+        container.appendChild(valueLabel);
 
         app.elements.bus_faders.appendChild(container);
 
         for(let strip = 1; strip <= 19; strip++){
             if(strip == 18) continue; // Skip 18, which is the right channel of the stereo pair with 17
             let control_id = `${bus_id}_channel_${strip}_level`;
-            let control = getControlById(control_id);
+            let control = controls.map[control_id];
 
             let container = document.createElement("div");
             container.classList.add("channel-strip");
 
-            let element = createControlElement(control_id);
+            let stripFader = control.createElement("fader");
 
             let label = document.createElement("label");
             label.textContent = strip;
-            label.htmlFor = element.id;
+            label.htmlFor = stripFader.id;
             container.appendChild(label);
-            container.appendChild(element);
+
+            let meter = document.createElement("meter");
+            meter.id = `${bus_id}_channel_${strip}_meter`;
+            meter.classList.add("peak");
+            meter.min = control.value_range[0];
+            meter.max = control.value_range[1];
+            meter.value = 0;
+            container.appendChild(meter);
+
+            if(strip in [17, 17]){
+                let meter = document.createElement("meter");
+                meter.id = `${bus_id}_channel_${strip+1}_meter`;
+                meter.classList.add("peak");
+                meter.min = control.value_range[0];
+                meter.max = control.value_range[1];
+                meter.value = 0;
+                container.appendChild(meter);
+            }
+
+            container.appendChild(stripFader);
+
+            let valueLabel = document.createElement("label");
+            valueLabel.textContent = `-100 ${control.unit}`;
+            container.appendChild(valueLabel);
 
             let faders_container = app.elements[`${bus_id}_faders`];
             if(faders_container){
@@ -222,99 +327,6 @@ app.load = function(){
     }
 
     app.log("App loaded");
-}
-
-app.connect = function(){
-    app.log("Connecting...");
-    app.setStatus('ble','connecting');
-
-    // Connect to BLE Midi device (with MIDI service UUID)
-    navigator.bluetooth.requestDevice({
-        filters: [{ services: [
-            MIDI_SERVICE_UID
-        ] }]
-    })
-    .then(device => {
-        app.log("Device found: " + device.name);
-        return device.gatt.connect();
-    })
-    .then(server => {
-        app.log("Connected to GATT server");
-        return server.getPrimaryService(MIDI_SERVICE_UID);
-    })
-    .then(service => {
-        app.log("MIDI service found");
-        return service.getCharacteristic(MIDI_IO_CHARACTERISTIC_UID);
-    })
-    .then(characteristic => {
-        app.log("MIDI characteristic found");
-        app.midi.characteristic = characteristic;
-        return characteristic.startNotifications();
-    })
-    .then(() => {
-        app.log("Notifications started");
-        app.midi.characteristic.addEventListener('characteristicvaluechanged', app.handleMidiMessage);
-        app.setStatus('ble','connected');
-    })
-    .catch(error => {
-        app.log("Error: " + error);
-        app.setStatus('ble','error');
-    });
-}
-app.elements.connectButton.addEventListener('click', app.connect);
-
-app.disconnect = function(){
-    const c = app.midi && app.midi.characteristic;
-    if(c){
-        try{ c.stopNotifications(); }catch(e){}
-        try{ c.removeEventListener('characteristicvaluechanged', app.handleMidiMessage); }catch(e){}
-        try{ c.service.device.gatt.disconnect(); }catch(e){}
-        app.log("Disconnected");
-        app.setStatus('ble','disconnected');
-    } else {
-        app.log("No device connected");
-        app.setStatus('ble','disconnected');
-    }
-}
-app.elements.disconnectButton.addEventListener('click', app.disconnect);
-
-app.handleMidiMessage = function(event){
-    let value = event.target.value;
-    // Process MIDI message (this is just a placeholder)
-    let midiData = new Uint8Array(value.buffer);
-    let midiMessageData = [];
-    let timeStampHeader = midiData[0];
-    console.log(midiData);
-    
-    for(let i = 1; i < midiData.length; i+=4){
-        midiMessageData.push([]);
-        midiMessageData[midiMessageData.length - 1].push(midiData[i+1]);
-        midiMessageData[midiMessageData.length - 1].push(midiData[i+2]);
-        midiMessageData[midiMessageData.length - 1].push(midiData[i+3]);
-    }
-    for(let i = 0; i < midiMessageData.length; i++){
-        let message = new MidiMessage(midiMessageData[i]);
-        console.log(message);
-        if(message.status == "control_change"){
-            let control = getControlByCC(message.value1, message.channel);
-            if(control){
-                app.log(control.name + ": " + message.value2);
-                control_values[control.id] = message.value2;
-                // Update UI element if exists and is not currently being changed by the user
-                let element = document.querySelector(`[data-control-id="${control.id}"]`);
-                if(element && element.matches(":not(:active)")){
-                    element.value = message.value2;
-                }
-
-                // If host, also broadcast to clients                
-                if(app.role === 'host' && app.ws && app.ws.readyState === WebSocket.OPEN){
-                    app.sendWs({type:'control', id: control.id, value: message.value2});
-                }
-            } else {
-                app.log("Unknown control change: ch " + message.channel + " cc " + message.value1 + " value " + message.value2);
-            }
-        }
-    }
 }
 
 app.load();

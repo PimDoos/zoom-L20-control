@@ -12,15 +12,6 @@ var app = {
         nick: document.getElementById("nick"),
         color: document.getElementById("color"),
         peers: document.getElementById("peers"),
-        bus_faders: document.getElementById("bus_faders"),
-        master_faders: document.getElementById("master_faders"),
-        monitor_a_faders: document.getElementById("monitor_a_faders"),
-        monitor_b_faders: document.getElementById("monitor_b_faders"),
-        monitor_c_faders: document.getElementById("monitor_c_faders"),
-        monitor_d_faders: document.getElementById("monitor_d_faders"),
-        monitor_e_faders: document.getElementById("monitor_e_faders"),
-        monitor_f_faders: document.getElementById("monitor_f_faders"),
-        efx_faders: document.getElementById("efx_faders"),
     },
     bleMidi: {},
     map: {},
@@ -150,6 +141,10 @@ app.connectBle = function(){
         app.log("Notifications started");
         app.bleMidi.characteristic.addEventListener('characteristicvaluechanged', midi.handleData);
         app.setStatus('ble','connected');
+        midi.commands.patch_request();
+        if(app.peaksEnabled){
+            midi.commands.peaks_start();
+        }
     })
     .catch(error => {
         app.log("Error: " + error);
@@ -191,85 +186,24 @@ app.updateControlFromMidi = function(message){
 
 app.load = function(){
     
-    for(let bus = 0; bus <= 6; bus++){
-        let bus_id = BUS_NAMES[bus].toLowerCase().replace(" ", "_");
-        let control_id = `${bus_id}_level`;
-        let control = controls.map[control_id];
+    let main = document.querySelector("main");
 
-        let container = document.createElement("div");
-        container.classList.add("channel-strip","bus");
+    for(const bus_id in buses){
+        let bus = buses[bus_id];
+        let busElement = bus.createElement();
+        main.appendChild(busElement);
+        let stripContainer = bus.stripsContainer;
 
-        let label = document.createElement("label");
-        label.textContent = control.displayName.replace(" Level", "");
-        
-        container.appendChild(label);
-
-        let meter = document.createElement("meter");
-        meter.id = `${bus_id}_meter`;
-        meter.classList.add("peak");
-        meter.min = control.value_range[0];
-        meter.max = control.value_range[1];
-        meter.value = 0;
-        container.appendChild(meter);
-
-        let fader = control.createElement("fader");
-        label.htmlFor = fader.id;
-
-        container.appendChild(fader);
-
-        let valueLabel = document.createElement("label");
-        valueLabel.textContent = `-100 ${control.unit}`;
-        container.appendChild(valueLabel);
-
-        app.elements.bus_faders.appendChild(container);
-
-        for(let strip = 1; strip <= 19; strip++){
-            if(strip == 18) continue; // Skip 18, which is the right channel of the stereo pair with 17
-            let control_id = `${bus_id}_channel_${strip}_level`;
-            let control = controls.map[control_id];
-
-            let container = document.createElement("div");
-            container.classList.add("channel-strip");
-
-            let stripFader = control.createElement("fader");
-
-            let label = document.createElement("label");
-            label.textContent = strip;
-            label.htmlFor = stripFader.id;
-            container.appendChild(label);
-
-            let meter = document.createElement("meter");
-            meter.id = `${bus_id}_channel_${strip}_meter`;
-            meter.classList.add("peak");
-            meter.min = control.value_range[0];
-            meter.max = control.value_range[1];
-            meter.value = 0;
-            container.appendChild(meter);
-
-            if(strip in [17, 17]){
-                let meter = document.createElement("meter");
-                meter.id = `${bus_id}_channel_${strip+1}_meter`;
-                meter.classList.add("peak");
-                meter.min = control.value_range[0];
-                meter.max = control.value_range[1];
-                meter.value = 0;
-                container.appendChild(meter);
-            }
-
-            container.appendChild(stripFader);
-
-            let valueLabel = document.createElement("label");
-            valueLabel.textContent = `-100 ${control.unit}`;
-            container.appendChild(valueLabel);
-
-            let faders_container = app.elements[`${bus_id}_faders`];
-            if(faders_container){
-                faders_container.appendChild(container);
-            }
+        for(const strip_id in bus.strips){
+            let strip = bus.strips[strip_id];
+            let stripElement = strip.createElement();
+            if(strip.id == bus.id) stripElement.classList.add("master");
+            else if(strip.id.indexOf("efx") != -1) stripElement.classList.add("effect");
+            stripContainer.appendChild(stripElement);
         }
-    }
 
-    
+    }
+    document.getElementById("initial-load").remove();
 
     // Wire network join button
     const joinBtn = document.getElementById('join_ws');
@@ -300,6 +234,25 @@ app.load = function(){
             app.color = e.target.value;
             try{ localStorage.setItem('color', app.color); }catch(_){}
             if(app.ws && app.ws.readyState === WebSocket.OPEN) app.sendWs({type:'identity', nick: app.nick, color: app.color});
+        });
+    }
+
+    let peaksEnabledCheckbox = document.getElementById('peaks_enabled');
+    if(peaksEnabledCheckbox){
+        peaksEnabledCheckbox.addEventListener('change', (e)=>{
+            app.peaksEnabled = e.target.checked;
+            if(!app.peaksEnabled){
+                midi.commands.peaks_stop();
+            } else {
+                midi.commands.peaks_start();
+            }
+        });
+    }
+
+    let patchRequestButton = document.getElementById("patch_request");
+    if(patchRequestButton){
+        patchRequestButton.addEventListener("click", (e)=>{
+            midi.commands.patch_request();
         });
     }
 

@@ -44,7 +44,9 @@ midi.sysEx.inProgress = false;
 
 midi.debug = {
     logRaw: false,
-    logMessage: true,
+    logMessage: false,
+    logParsed: false,
+    logSend: false,
 }
 
 midi.handleData = function(event){
@@ -82,7 +84,9 @@ midi.handleData = function(event){
             } else {
                 let timestampLsb = midiData[i];
                 let message = new MidiMessage(midiData.slice(i-1, i+3));
-                console.log(message);
+                if(midi.debug.logMessage){
+                    console.log(message);
+                }
                 midi.handleMessage(message);
                 i += 3; // skip the next 3 bytes since we've already processed them
             }
@@ -102,26 +106,148 @@ midi.handleMessage = function(message){
         if (commandByte in MIDI_SYSEX_BYTES){
             let command = MIDI_SYSEX_BYTES[commandByte];
             if(command == "peaks_data"){
-                // TODO write incoming peaks data to strip meters
-                let data = message.values.slice(6, 6 + (18*2));
-                let peakValues = data.slice(0, 19);
-                let signalValues = data.slice(19, 19 + (18*2));
+                let data = message.values.slice(0x06, 0x38);
 
+                /**
+                 * Data is bitmasked:
+                 * - 0x00-0x0C: Peak values
+                 * - 0x10: Signal bit
+                 * - 0x20: Clip bit
+                 * 
+                 * Address 0-19: Master channels 1-20 Pre-fader
+                 * Address 20-23: EFX1+2 L/R Pre-fader
+                 * Address 24-43: Channels 1-20 Post-fader
+                 * Address 44-47: EFX1+2 L/R Post-fader
+                 * Address 48-49: Master L/R Post-fader
+                 */
 
-                for(let ch = 1; ch <= 19; ch++){
-                    if(ch == 18) continue;
-                    let meterElement = document.getElementById(`master_channel_${ch}_meter`);
+                let channelPeak = [];
+                let channelSignal = [];
+                let channelClip = [];
+                for(let i = 0; i < 50; i++){
+                    channelPeak.push(data[i] & 0x0F);
+                    channelSignal.push((data[i] & 0x10) > 0);
+                    channelClip.push((data[i] & 0x20) > 0);
+                }
+
+                if(midi.debug.logParsed){
+                    console.log(channelPeak, channelSignal, channelClip);
+                }
+
+                for(let i = 1; i <= 20; i++){
+                    let meterElement = document.getElementById(`master_channel_${i}_meter`);
                     if(meterElement){
-                        meterElement.value = peakValues[ch - 1];
+                        meterElement.value = channelPeak[i - 1];
+                        meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                        meterElement.dataset["clip"] = channelClip[i - 1] > 0;
+
+                    }
+                }
+                for(let i = 21; i <= 24; i++){
+                    let meterElement = document.getElementById(`master_efx${i-20}_meter`);
+                    if(meterElement){
+                        meterElement.value = channelPeak[i - 1];
+                        meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                        meterElement.dataset["clip"] = channelClip[i - 1] > 0;
+                    }
+                }
+                for(let i = 49; i <= 50; i++){
+                    let meterElement = document.getElementById(`master_${(i % 2) ? "l" : "r"}_meter`);
+                    if(meterElement){
+                        meterElement.value = channelPeak[i - 1];
+                        meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                        meterElement.dataset["clip"] = channelClip[i - 1] > 0;
                     }
                 }
             } else if(command == "patch_response"){
-                let patchData = new TextDecoder().decode(
-                    new Uint8Array(message.values.slice(8))
-                ).split("\x00").slice(0, 39);
-                console.log(patchData);
+                const decoder = new TextDecoder();
+                const CHANNEL_CONTROL_ADDR = {
+                    0xAA: "color",
+                    0xBC: "record",
+                    0xCE: "mute",
+                    0xE0: "solo",
+                    0x104: "pan",
+                    0x128: "eq_off",
+                    0x13A: "eq_high_gain",
+                    0x14C: "eq_mid_frequency",
+                    0x15E: "eq_mid_gain",
+                    0x170: "eq_low_gain",
+                    0x182: "eq_low_cut",
+                    0x192: "efx_1",
+                    0x1A6: "efx_2",
+                    0x1B8: "master_level",
+                    0x1CA: "monitor_a_level",
+                    0x1DC: "monitor_b_level",
+                    0x1EE: "monitor_c_level",
+                    0x200: "monitor_d_level",
+                    0x212: "monitor_e_level",
+                    0x224: "monitor_f_level",
+                }
+                for(let i = 0; i < 18; i++){
+                    let channelPatch = {number: i < 17 ? i + 1 : i + 2};
+                    let stringLength = 0x09;
+                    let startIndex = 0x08 + i * stringLength;
+                    let stopIndex = startIndex + stringLength;
+                    let stringBytes = message.values.slice(startIndex,stopIndex).filter(x => x != 0x00);
+                    
+                    channelPatch.displayName = decoder.decode(
+                        new Uint8Array(stringBytes)
+                    );
 
-                // TODO handle incoming patch data: update controls and channel names
+                    for(let address in CHANNEL_CONTROL_ADDR){
+                        let addressName = CHANNEL_CONTROL_ADDR[address];
+                        let addressStart = parseInt(address) + i;
+                        let addressEnd = addressStart + 1;
+                        channelPatch[addressName] = message.values.slice(addressStart, addressEnd)[0];
+                    }
+
+                    if(midi.debug.logParsed){
+                        console.log(channelPatch);
+                    }
+                    for(let bus_id in buses){
+                        let strip = buses[bus_id].strips[`${bus_id}_channel_${channelPatch.number}`];
+                        if(strip){
+                            if(strip.levelController) strip.levelController.updateValue(channelPatch[bus_id + "_level"], "patch");
+                            strip.updateColor(channelPatch.color);
+                            strip.updateDisplayName(channelPatch.displayName);
+                            if(bus_id == "master"){
+                            strip.recordController.updateValue(channelPatch.record, "patch");
+                            strip.muteController.updateValue(channelPatch.mute, "patch");
+                            strip.soloController.updateValue(channelPatch.solo, "patch");
+                        }
+                        }
+                        
+                    }
+                }
+                
+                let masterPatch = {
+                    record: message.values.slice(0x252, 0x253)[0],
+                    mute: message.values.slice(0x253, 0x254)[0],
+                };
+                const MASTER_CONTROL_ADDR = ["master_level", "monitor_a_level", "monitor_b_level", "monitor_c_level", "monitor_d_level", "monitor_e_level", "monitor_f_level"]
+                for(let i in MASTER_CONTROL_ADDR){
+                    let index_num = parseInt(i);
+                    masterPatch[MASTER_CONTROL_ADDR[index_num]] = message.values.slice(0x254 + index_num, 0x255 + index_num);
+                }
+                if(midi.debug.logParsed){
+                    console.log(masterPatch);
+                }
+
+                let recorderPatch = {};
+                recorderPatch.fileName = decoder.decode(
+                    new Uint8Array(
+                        message.values
+                        .slice(0x292, 0x2A0)
+                        .filter(x => x != 0x00)
+                    )
+                );
+
+                if(midi.debug.logParsed){
+                    console.log(recorderPatch);
+                }
+
+
+
             } else if(command == "scene_response"){
                 // TODO handle incoming scene data
             }
@@ -132,6 +258,9 @@ midi.handleMessage = function(message){
 midi.sendMessage = function(data){
     if(app && app.bleMidi && app.bleMidi.characteristic){
         try {
+            if(midi.debug.logSend){
+                console.log(data);
+            }
             let midiMessageData = new Uint8Array(data);
             app.bleMidi.characteristic.writeValue(midiMessageData);
             return true;

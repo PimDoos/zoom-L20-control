@@ -1,3 +1,4 @@
+
 body {
     font: 1em sans-serif;
     background-color: black;
@@ -26,28 +27,78 @@ body {
 }
 
 div.channel-strip {
-    display: inline-block;
-    margin: 10px;
+    font: 1em monospace;
+    display: inline-table;
+    margin: 5px 1px;
+    width: 70px;
+    vertical-align: top;
     text-align: center;
-    padding: 10px;
+    padding: 2px;
     border: 1px solid #ccc;
     border-radius: 5px;
     background-color: #303030;
+    
 }
-div.channel-strip > label {
+div.channel-strip[data-color-id="0"] > .label{ background-color: #202020; }
+div.channel-strip[data-color-id="1"] > .label{ background-color: #FF0000; }
+div.channel-strip[data-color-id="2"] > .label{ background-color: #FFAA00; color: black;}
+div.channel-strip[data-color-id="3"] > .label{ background-color: #FFFF00; color: black;}
+div.channel-strip[data-color-id="4"] > .label{ background-color: #00AA00; }
+div.channel-strip[data-color-id="5"] > .label{ background-color: #00AAFF; }
+div.channel-strip[data-color-id="6"] > .label{ background-color: #0000FF; }
+div.channel-strip[data-color-id="7"] > .label{ background-color: #AA00FF; }
+
+div.channel-strip > label, div.channel-strip > .label {
     display: block;
+}
+div.channel-strip > .label {
+    font-size: 1.2em;
 }
 
 div.channel-strip > input[type="range"].fader {
     writing-mode: vertical-lr; 
     direction: rtl;
     width: 16px;
-    height: 100px;
+    height: 120px;
     margin: 0;
+    accent-color: lime;
+}
+div.channel-strip.master > input[type="range"].fader {
+    accent-color: red;
+}
+div.channel-strip.effect > input[type="range"].fader{
+    accent-color: cyan;
 }
 div.channel-strip > meter.peak {
     writing-mode: vertical-lr; 
     direction: rtl;
+    width: 20px;
+    height: 120px;
+    margin-left: 0;
+    margin-right:0;
+}
+div.channel-strip > meter.peak[data-signal="true"]{
+    /*background-color: lime;*/
+}
+div.channel-strip > meter.peak[data-clip="true"]{
+    /*background-color: red;*/
+}
+div.channel-strip > .toggle {
     width: 16px;
-    height: 100px;
+    height: 16px;
+}
+div.channel-strip > .toggle.mute {
+    accent-color: red;
+}
+div.channel-strip > .toggle.solo {
+    accent-color: orange;
+}
+div.channel-strip > select.record {
+    background-color: #a0a0a0;
+}
+div.channel-strip > select.record:has(> option[value="1"]:checked) {
+    background-color: lime;
+}
+div.channel-strip > select.record:has(> option[value="2"]:checked) {
+    background-color: red;
 }

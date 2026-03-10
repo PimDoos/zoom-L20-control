@@ -18,6 +18,48 @@ body {
     display: block;
 }
 
+#connectivity {
+    margin-bottom: 12px;
+}
+#connectivity > div {
+    display: inline-block;
+    height: 32px;
+}
+#connectivity > div > * {
+    height: 32px;
+}
+#connectivity > div > button {
+    font-size: 1.1em;
+}
+
+#connectivity > div > button[data-status="disconnected"] {
+    background-color: #3030A0;
+    color: white;
+}
+#connectivity > div > button[data-status="connected"] {
+    background-color: #30F080;
+    color: white;
+}
+@keyframes scroll-background {
+    from { background-position-x: 0%; }
+    to { background-position-x: 100%; }
+}
+#connectivity > div > button[data-status="connecting"] {
+    background: linear-gradient(90deg,#3030A0,#8080F0,#3030A0);
+    background-size: 200% 200%;
+    
+    animation-name: scroll-background;
+    animation-duration: 1s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+    animation-direction: alternate;
+    color: white;
+}
+#connectivity > div > button[data-status="error"] {
+    background-color: #A03030;
+    color: white;
+}
+
 #peers_ui {
     margin-bottom: 20px;
     padding: 10px;
@@ -83,15 +125,19 @@ div.channel-strip > meter.peak[data-signal="true"]{
 div.channel-strip > meter.peak[data-clip="true"]{
     /*background-color: red;*/
 }
-div.channel-strip > .toggle {
-    width: 16px;
-    height: 16px;
+div.channel-strip > .toggle.mute[data-value="0"] {
+    background-color: #800000;
 }
-div.channel-strip > .toggle.mute {
-    accent-color: red;
+div.channel-strip > .toggle.mute[data-value="1"] {
+    background-color: red;
+    color: white;
 }
-div.channel-strip > .toggle.solo {
-    accent-color: orange;
+div.channel-strip > .toggle.solo[data-value="0"] {
+    background-color: #805000;
+}
+div.channel-strip > .toggle.solo[data-value="1"] {
+    background-color: orange;
+    color: white;
 }
 div.channel-strip > select.record {
     background-color: #a0a0a0;

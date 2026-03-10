@@ -99,7 +99,7 @@ midi.handleMessage = function(message){
     if(message.status == "control_change"){
         let control = getControlByCC(message.controller, message.channel);
         if(control){
-            control.updateValue(message.value, "midi");
+            control.writeValue(message.value, "midi");
         }
     } else if(message.status == "system_message"){
         let commandByte = message.values[3];
@@ -197,8 +197,7 @@ midi.handleMessage = function(message){
                     for(let address in CHANNEL_CONTROL_ADDR){
                         let addressName = CHANNEL_CONTROL_ADDR[address];
                         let addressStart = parseInt(address) + i;
-                        let addressEnd = addressStart + 1;
-                        channelPatch[addressName] = message.values.slice(addressStart, addressEnd)[0];
+                        channelPatch[addressName] = message.values[addressStart];
                     }
 
                     if(midi.debug.logParsed){
@@ -207,33 +206,46 @@ midi.handleMessage = function(message){
                     for(let bus_id in buses){
                         let strip = buses[bus_id].strips[`${bus_id}_channel_${channelPatch.number}`];
                         if(strip){
-                            if(strip.levelController) strip.levelController.updateValue(channelPatch[bus_id + "_level"], "patch");
+                            if(strip.levelController) strip.levelController.updateValue(channelPatch[bus_id + "_level"], "midi");
                             strip.updateColor(channelPatch.color);
                             strip.updateDisplayName(channelPatch.displayName);
                             if(bus_id == "master"){
-                            strip.recordController.updateValue(channelPatch.record, "patch");
-                            strip.muteController.updateValue(channelPatch.mute, "patch");
-                            strip.soloController.updateValue(channelPatch.solo, "patch");
-                        }
+                                strip.recordController.updateValue(channelPatch.record, "midi");
+                                strip.muteController.updateValue(channelPatch.mute, "midi");
+                                strip.soloController.updateValue(channelPatch.solo, "midi");
+                            }
                         }
                         
                     }
                 }
                 
                 let masterPatch = {
-                    record: message.values.slice(0x252, 0x253)[0],
-                    mute: message.values.slice(0x253, 0x254)[0],
+                    record: message.values[0x252],
+                    mute: message.values[0x253],
                 };
                 const MASTER_CONTROL_ADDR = ["master_level", "monitor_a_level", "monitor_b_level", "monitor_c_level", "monitor_d_level", "monitor_e_level", "monitor_f_level"]
                 for(let i in MASTER_CONTROL_ADDR){
                     let index_num = parseInt(i);
-                    masterPatch[MASTER_CONTROL_ADDR[index_num]] = message.values.slice(0x254 + index_num, 0x255 + index_num);
+                    masterPatch[MASTER_CONTROL_ADDR[index_num]] = message.values[0x254 + index_num];
                 }
                 if(midi.debug.logParsed){
                     console.log(masterPatch);
                 }
 
-                let recorderPatch = {};
+                let recorderPatch = {
+                    position:{
+                        days: message.values[0x26F],
+                        hours: message.values[0x270],
+                        minutes: message.values[0x271],
+                        seconds: message.values[0x272],
+                    },
+                    remaining:{
+                        days: message.values[0x273],
+                        hours: message.values[0x274],
+                        minutes: message.values[0x275],
+                        seconds: message.values[0x276],
+                    }
+                };
                 recorderPatch.fileName = decoder.decode(
                     new Uint8Array(
                         message.values
@@ -242,8 +254,25 @@ midi.handleMessage = function(message){
                     )
                 );
 
+                for(let recorderPatchKey in recorderPatch){
+                    for(let unit in recorderPatch[recorderPatchKey]){
+                        let control_id = `recorder_${recorderPatchKey}_${unit}`;
+                        let control = controls.map[control_id];
+                        if(control){
+                            control.updateValue(recorderPatch[recorderPatchKey][unit], "midi");
+                        }
+                    }
+                    
+                }
+
+
+
                 if(midi.debug.logParsed){
                     console.log(recorderPatch);
+                }
+
+                if(app.ws){
+                    app.wsSendFullState();
                 }
 
 

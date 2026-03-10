@@ -14,11 +14,14 @@ Simple WebApp to control Zoom L20 mixers over BLE
 This project was absolutely vibe-coded and might not be safe or efficient. Use at your own risk.
 
 ## Todos
-- [ ] Implement Zoom L-20 SysEx messages
-  - [ ] Fetch all parameters
-  - [ ] Real time peak meter values
-  - [ ] Channel strip names and colors
+- [X] Implement Zoom L-20 SysEx messages: Done!
+  - [X] Fetch all parameters
+  - [X] Real time peak meter values
+  - [X] Channel strip names and colors
 
 - [ ] Presets
 - [ ] Mapped fader dB values
 - [ ] More channel strip controls (pan, mute, solo, record/playback, fx, etc.)
+- [ ] Send peaks to websocket clients
+- [ ] Send strip styling to websocket clients
+- [ ] Recorder UI

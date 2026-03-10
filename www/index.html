@@ -11,30 +11,27 @@
     </head>
     <body>
         <h1>L20 Control</h1>
+        <div id="connectivity">
+            <div id="ble_ui">
+                <button id="ble_connect" ckass="status">ᚼᛒ Bluetooth</button>
+            </div>
+            |
+            <div id="ws_ui">
+                <button id="ws_connect" class="status">🌐 Websocket</button>
+            </div>
+            |
+            <div id="user_ui">
+                <input id="nick" type="text" value="" size="12" placeholder="name">
+                <input id="color" type="color" value="#00aaff">
+            </div>    
+        </div>
         <label for="show_settings">Show Settings</label>
         <input type="checkbox" id="show_settings">
         <div id="settings_ui">
-            <div id="network_ui" style="margin-bottom:12px;">
+            <div id="ws_settings_ui">
                 <h3>Network</h3>
-                Status: <span id="status_ws">disconnected</span><br/>
                 <label for="ws_url">WebSocket server:</label>
-                <input id="ws_url" type="text" value="ws://127.0.0.1:8765" size="28">
-                <label for="nick">Nick:</label>
-                <input id="nick" type="text" value="" size="12" placeholder="name">
-                <label for="color">Color:</label>
-                <input id="color" type="color" value="#00aaff">
-                <label for="role">Role:</label>
-                <select id="role">
-                    <option value="client">Client</option>
-                    <option value="host">Host</option>
-                </select>
-                <button id="join_ws">Join Network</button>
-            </div>
-            <div id="ble_ui" style="margin-bottom:12px;">
-                <h3>Bluetooth</h3>
-                BLE Device: <span id="status_ble">disconnected</span>
-                <button id="connect">Connect</button>
-                <button id="disconnect">Disconnect</button><br/>
+                <input id="ws_url" type="text" value="" size="28">
             </div>
             <div id="log_ui">
                 <h3>Log</h3>

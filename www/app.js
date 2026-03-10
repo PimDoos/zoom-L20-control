@@ -3,11 +3,10 @@ const MIDI_IO_CHARACTERISTIC_UID  = '7772E5DB-3868-4112-A1A9-F2669D106BF3'.toLow
 
 var app = {
     elements:{
-        connectButton: document.getElementById("connect"),
-        disconnectButton: document.getElementById("disconnect"),
+        bleConnectButton: document.getElementById("ble_connect"),
+        wsConnectButton: document.getElementById("ws_connect"),
+
         log: document.getElementById("log"),
-        statusWs: document.getElementById("status_ws"),
-        statusBle: document.getElementById("status_ble"),
         ws_url: document.getElementById("ws_url"),
         nick: document.getElementById("nick"),
         color: document.getElementById("color"),
@@ -15,6 +14,10 @@ var app = {
     },
     bleMidi: {},
     map: {},
+    connectivity: {
+        bleConnected: false,
+        wsConnected: false,
+    }
 };
 
 app.log = function(message){
@@ -23,26 +26,59 @@ app.log = function(message){
     log.scrollTop = log.scrollHeight;
 }
 
-app.setStatus = function(kind, text){
-    if(!app.elements) return;
-    if(kind === 'ws' && app.elements.statusWs) app.elements.statusWs.textContent = text;
-    if(kind === 'ble' && app.elements.statusBle) app.elements.statusBle.textContent = text;
+app.setStatus = function(kind, status){
+    if(kind === 'ws' && app.elements.wsConnectButton){    
+        app.elements.wsConnectButton.dataset["status"] = status;
+        app.connectivity.wsConnected = status == "connected";
+    } 
+    if(kind === 'ble' && app.elements.bleConnectButton){
+        if(status == 'connected') app.setRole('host');
+        else app.setRole('client');
+        app.elements.bleConnectButton.dataset["status"] = status;
+        app.connectivity.bleConnected = status == "connected";
+    } 
+}
+app.setRole = function(role){
+    app.role = role;
+    if(app.ws){
+        app.wsSend({type:'role', role: app.role, nick: app.nick, color: app.color});
+        if(app.role == 'host'){
+            app.wsSendFullState();
+        }
+    }
 }
 
 // WebSocket networking helpers
 app.ws = null;
 app.role = 'client';
-app.wsUrl = '';
+app.wsUrl = 'ws://127.0.0.1:8765';
 app.nick = '';
 app.color = '#00aaff';
 
-app.sendWs = function(obj){
+app.wsSend = function(obj){
     if(!app.ws || app.ws.readyState !== WebSocket.OPEN) return;
     try{
         app.ws.send(JSON.stringify(obj));
     } catch(e){
         app.log('WS send error: ' + e);
     }
+}
+app.wsSendFullState = function(){
+    let message = {
+        type: "full_state",
+        state: {},
+        strips: {}
+    }
+    for(let control_id in controls.map){
+        message.state[control_id] = controls.map[control_id].value;
+    }
+    for(let strip_id in strips){
+        message.strips[strip_id] = {
+            displayName: strips[strip_id].displayName,
+            color: strips[strip_id].color,
+        }
+    }
+    app.wsSend(message);
 }
 
 app.handleWsMessage = function(event){
@@ -51,30 +87,30 @@ app.handleWsMessage = function(event){
         if(message.type === 'control'){
             let control = controls.map[message.id];
             if(control){
-                // Update UI element locally if exists and not active
-                control.updateValue(message.value, "ws");
-
-                // If this client is the host, also write the change to BLE
-                if(app.role === 'host'){
-                    if(app.bleMidi && app.bleMidi.characteristic){
-                        midiMessageData = midi.createControlChangeMessage(
-                            control.ch, control.cc, Number(message.value)
-                        );
-                        midi.sendMessage(midiMessageData);
-                        
-                    } 
-                }
+                // Write to control
+                control.writeValue(message.value, "ws");
             }
-        } else if(message.type === 'full_state'){
+        } else if(message.type == "request_state"){
+            app.wsSendFullState();
+        } else if(message.type == 'full_state'){
             // apply full state
             for(let control_id in message.state){
                 let value = message.state[control_id];
                 let control = controls.map[control_id];
                 control.updateValue(value, "ws");
             }
+            for(let strip_id in message.strips){
+                let strip = strips[strip_id];
+                strip.updateDisplayName(message.strips[strip_id].displayName);
+                strip.updateColor(message.strips[strip_id].color);
+            }
         } else if(message.type === 'peers'){
             if(Array.isArray(message.peers)){
                 app.updatePeersUI(message.peers);
+            }
+        } else if(message.type == 'peak'){
+            for(let strip_id in message.strips){
+                let strip = strips[strip_id];
             }
         }
     } catch(e){
@@ -82,12 +118,7 @@ app.handleWsMessage = function(event){
     }
 }
 
-app.joinNetwork = function(){
-    const urlInput = document.getElementById('ws_url');
-    const roleSelect = document.getElementById('role');
-    if(!urlInput || !roleSelect) return;
-    app.wsUrl = urlInput.value;
-    app.role = roleSelect.value;
+app.wsConnect = function(){
     app.setStatus('ws', 'connecting');
 
     try{
@@ -95,10 +126,12 @@ app.joinNetwork = function(){
         app.ws.addEventListener('open', () => {
             app.setStatus('ws', 'connected');
             app.log('WebSocket connected to ' + app.wsUrl + ' as ' + app.role);
-            app.sendWs({type:'role', role: app.role, nick: app.nick, color: app.color});
+            app.wsSend({type:'role', role: app.role, nick: app.nick, color: app.color});
             // If client, request state
             if(app.role === 'client'){
-                app.sendWs({type:'request_state'});
+                app.wsSend({type:'request_state'});
+            } else if (app.role == 'host'){
+                app.wsSendFullState();
             }
         });
         app.ws.addEventListener('message', app.handleWsMessage);
@@ -109,8 +142,22 @@ app.joinNetwork = function(){
         app.log('WebSocket connect error: ' + e);
     }
 }
+app.wsDisconnect = function(){
+    if(app.ws){
+        app.ws.close();
+        app.elements.peers.innerHTML = '';
+    }
+    app.ws = null;
+}
+app.elements.wsConnectButton.addEventListener('click', function(){
+    if(!app.connectivity.wsConnected){
+        app.wsConnect();
+    } else {
+        app.wsDisconnect();
+    }
+});
 
-app.connectBle = function(){
+app.bleConnect = function(){
     app.log("Connecting...");
     app.setStatus('ble','connecting');
 
@@ -151,9 +198,8 @@ app.connectBle = function(){
         app.setStatus('ble','error');
     });
 }
-app.elements.connectButton.addEventListener('click', app.connectBle);
 
-app.disconnectBle = function(){
+app.bleDisconnect = function(){
     let characteristic = app.bleMidi && app.bleMidi.characteristic;
     if(characteristic){
         try{ characteristic.stopNotifications(); } catch(e){}
@@ -166,25 +212,17 @@ app.disconnectBle = function(){
         app.setStatus('ble','disconnected');
     }
 }
-app.elements.disconnectButton.addEventListener('click', app.disconnectBle);
-
-app.updateControlFromMidi = function(message){
-    if(message.status == "control_change"){
-        let control = getControlByCC(message.controller, message.channel);
-        if(control){
-            control.updateValue(message.value, "midi");
-            
-            // If host, also broadcast to clients  
-            if(app.role === 'host' && app.ws && app.ws.readyState === WebSocket.OPEN){
-                app.sendWs({type:'control', id: control.id, value: message.value});
-            }
-        } else {
-            app.log("Unknown control change: ch " + message.channel + " cc " + message.controller + " value " + message.value);
-        }
+app.elements.bleConnectButton.addEventListener('click', function(){
+    if(!app.connectivity.bleConnected){
+        app.bleConnect();
+    } else {
+        app.bleDisconnect();
     }
-}
+});
 
 app.load = function(){
+    app.setStatus("ble","disconnected");
+    app.setStatus("ws","disconnected");
     
     let main = document.querySelector("main");
 
@@ -205,35 +243,43 @@ app.load = function(){
     }
     document.getElementById("initial-load").remove();
 
-    // Wire network join button
-    const joinBtn = document.getElementById('join_ws');
-    if(joinBtn) joinBtn.addEventListener('click', app.joinNetwork);
-
     // Load persistent settings from localStorage and wire identity change events
     try{
         const savedUrl = localStorage.getItem('ws_url');
         const savedNick = localStorage.getItem('nick');
         const savedColor = localStorage.getItem('color');
-        if(app.elements.ws_url && savedUrl) app.elements.ws_url.value = savedUrl;
-        if(app.elements.nick && savedNick){ app.elements.nick.value = savedNick; app.nick = savedNick; }
-        if(app.elements.color && savedColor){ app.elements.color.value = savedColor; app.color = savedColor; }
+        if(app.elements.ws_url && savedUrl){
+            app.wsUrl = savedUrl;
+            app.elements.ws_url.value = savedUrl;
+        } 
+        if(app.elements.nick && savedNick){ 
+            app.nick = savedNick;
+            app.elements.nick.value = savedNick; app.nick = savedNick;
+         }
+        if(app.elements.color && savedColor){ 
+            app.color = savedColor;
+            app.elements.color.value = savedColor; app.color = savedColor; 
+        }
     }catch(e){ }
 
     if(app.elements.ws_url){
-        app.elements.ws_url.addEventListener('change', (e)=>{ try{ localStorage.setItem('ws_url', e.target.value); }catch(_){} });
+        app.elements.ws_url.addEventListener('change', (e)=>{ 
+            app.wsUrl = e.target.value;
+            try{ localStorage.setItem('ws_url', e.target.value); }catch(_){} 
+        });
     }
     if(app.elements.nick){
         app.elements.nick.addEventListener('change', (e)=>{
             app.nick = e.target.value;
             try{ localStorage.setItem('nick', app.nick); }catch(_){}
-            if(app.ws && app.ws.readyState === WebSocket.OPEN) app.sendWs({type:'identity', nick: app.nick, color: app.color});
+            if(app.ws && app.ws.readyState === WebSocket.OPEN) app.wsSend({type:'identity', nick: app.nick, color: app.color});
         });
     }
     if(app.elements.color){
         app.elements.color.addEventListener('change', (e)=>{
             app.color = e.target.value;
             try{ localStorage.setItem('color', app.color); }catch(_){}
-            if(app.ws && app.ws.readyState === WebSocket.OPEN) app.sendWs({type:'identity', nick: app.nick, color: app.color});
+            if(app.ws && app.ws.readyState === WebSocket.OPEN) app.wsSend({type:'identity', nick: app.nick, color: app.color});
         });
     }
 

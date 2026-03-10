@@ -112,12 +112,14 @@ class MixerStrip {
             if(this.muteController){
                 let muteButton = this.muteController.createElement("toggle");
                 muteButton.classList.add("mute");
+                muteButton.innerText = "M";
                 this.containerElement.appendChild(muteButton);
             }
             
             if(this.soloController){
                 let soloButton = this.soloController.createElement("toggle");
                 soloButton.classList.add("solo");
+                soloButton.innerText = "S";
                 this.containerElement.appendChild(soloButton);
             }
             if(this.recordController){
@@ -195,26 +197,32 @@ class Controller {
     updateValue(value, source){
         this.value = value;
         this.mapped_value = this.mapValue(value);
-        if(this.element) this.element.value = value;
+        if(this.element){
+            switch(this.element.nodeName){
+                case "BUTTON":
+                    this.element.dataset.value = value;
+                    break;
+                default:
+                    if(this.element != document.activeElement) this.element.value = value;
+                    break;
+            }
+
+        }
         
         this.formatted_value = this.formatValue(this.mapped_value);
         app.log(`[${source}] ${this.displayName}: ${this.formatted_value}`);
         if(this.label) this.label.innerText = this.formatted_value;
     }
-    writeValue(value){
-        this.updateValue(value, "local");
-
-        // Write to WebSocket if connected
-        if(app.ws){
-            app.sendWs({type:'control', id: this.id, value: Number(this.value)});
+    writeValue(value, source = "local"){
+        this.updateValue(value, source);
+        if(app.connectivity.wsConnected && source != "ws"){
+            app.wsSend({type:'control', id: this.id, value: Number(this.value)});
         }
-
         // Write to BLE if connected
-        if(app && app.bleMidi && app.bleMidi.characteristic){
+        if(app.connectivity.bleConnected && source != "midi"){
             let midiData = midi.createControlChangeMessage(this.channel, this.controller_number, value);
             midi.sendMessage(midiData);
         }
-        
     }
     createElement(type){
         let element;
@@ -234,16 +242,17 @@ class Controller {
                 });
                 break;
             case "toggle":
-                element = document.createElement("input");
-                element.type = "checkbox";
+                element = document.createElement("button");
                 element.classList.add("toggle");
                 element.dataset.controlId = this.id;
                 element.id = `${type}-${this.id}`;
-                element.checked = this.value;
-                element.addEventListener("change", function(e){
+                element.dataset.value = this.value;
+                element.addEventListener("click", function(e){
                     let control = controls.map[this.dataset.controlId];
-                    control.writeValue(e.target.checked)
+                    let newValue = (parseInt(this.dataset.value) + 1) % (control.value_range[1] + 1);
+                    control.writeValue(newValue)
                 });
+
                 break
             case "select":
                 element = document.createElement("select");
@@ -325,7 +334,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
             id = `${bus_id}_record`,
             displayName = `${BUS_NAMES[bus_num]} Record`,
             controller_number = bus_cc,
-            channel = 10,
+            channel = 9,
             value_range = [0, 2],
             mapping = ["off","play","record"],
             unit = null,
@@ -476,47 +485,18 @@ for(let i = 0; i < 4; i++){
             break;
     }
 
-    let control = new Controller(
-        id = `recorder_time_${time_label}`,
-        displayName = `Recorder Time ${time_label}`,
+    let recoderPositionControl = new Controller(
+        id = `recorder_position_${time_label}`,
+        displayName = `Recorder Position ${time_label}`,
         controller_number = 88,
         channel = 9 + i,
         value_range = [0, 60],
         mapping = null,
         unit = time_label
     );
-    }
 
-let recorder_playing_control = new Controller(
-    id = `recorder_playing`,
-    displayName = `Recorder Playing`,
-    controller_number = 87,
-    channel = 9,
-    value_range = [0, 1],
-    mapping = ["stop","play",,"armed",,"recording"],
-    default_value = 0
-);
-
-
-// Storage time remaining
-for(let i = 0; i < 4; i++){
-    let time_label;
-    switch(i){
-        case 0:
-            time_label = "days";
-            break;
-        case 1:
-            time_label = "hours";
-            break;
-        case 2:
-            time_label = "minutes";
-            break;
-        case 3:
-            time_label = "seconds";
-            break;
-    }
-    let control = new Controller(
-        id = `storage_remaining_${time_label}`,
+    let recorderRemainingControl = new Controller(
+        id = `recorder_remaining${time_label}`,
         displayName = `Storage Remaining ${time_label}`,
         label = `Storage ${time_label}`,
         bus = buses["master"],
@@ -527,6 +507,16 @@ for(let i = 0; i < 4; i++){
         unit = time_label.slice(0,1)
     );
 }
+
+let recorder_playing_control = new Controller(
+    id = `recorder_playing`,
+    displayName = `Recorder Playing`,
+    controller_number = 87,
+    channel = 9,
+    value_range = [0, 1],
+    mapping = ["stop","play",,"armed",,"recording"],
+    default_value = 0
+);
 
 // Presets
 let preset_select_control = new Controller(

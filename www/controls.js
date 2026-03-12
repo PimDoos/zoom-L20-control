@@ -612,7 +612,7 @@ for(let i = 0; i < 4; i++){
     );
 
     recorder.remainingControl[time_label] = new Controller(
-        id = `recorder_remaining${time_label}`,
+        id = `recorder_remaining_${time_label}`,
         displayName = `Storage Remaining ${time_label}`,
         controller_number = 88,
         channel = 13 + i,

@@ -220,13 +220,13 @@ midi.handleMessage = function(message){
                 }
                 
                 let masterPatch = {
-                    record: message.values[0x252],
-                    mute: message.values[0x253],
+                    record: message.values[0x240],
+                    mute: message.values[0x241],
                 };
                 const MASTER_CONTROL_ADDR = ["master_level", "monitor_a_level", "monitor_b_level", "monitor_c_level", "monitor_d_level", "monitor_e_level", "monitor_f_level"]
                 for(let i in MASTER_CONTROL_ADDR){
                     let index_num = parseInt(i);
-                    masterPatch[MASTER_CONTROL_ADDR[index_num]] = message.values[0x254 + index_num];
+                    masterPatch[MASTER_CONTROL_ADDR[index_num]] = message.values[0x242 + index_num];
                 }
                 if(midi.debug.logParsed){
                     console.log(masterPatch);
@@ -249,7 +249,7 @@ midi.handleMessage = function(message){
                 recorderPatch.fileName = decoder.decode(
                     new Uint8Array(
                         message.values
-                        .slice(0x292, 0x2A0)
+                        .slice(0x27D, 0x28A)
                         .filter(x => x != 0x00)
                     )
                 );

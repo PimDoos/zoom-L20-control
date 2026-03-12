@@ -155,6 +155,7 @@ class Controller {
         this.value = default_value; // MIDI value (0-127)
         this.mapped_value = this.mapValue(default_value); // Value mapped to unit
         this.formatted_value = this.formatValue(this.mappedValue);
+        this.labelValue = "formatted";
         controls.map[this.id] = this;
     }
     mapValue(value){
@@ -202,6 +203,10 @@ class Controller {
                 case "BUTTON":
                     this.element.dataset.value = value;
                     break;
+                case "DIV":
+                    if(this.element.classList.contains("recorder-transport")){
+                        this.element.dataset.value = value;
+                    }
                 default:
                     if(this.element != document.activeElement) this.element.value = value;
                     break;
@@ -211,7 +216,11 @@ class Controller {
         
         this.formatted_value = this.formatValue(this.mapped_value);
         app.log(`[${source}] ${this.displayName}: ${this.formatted_value}`);
-        if(this.label) this.label.innerText = this.formatted_value;
+        if(this.label){
+            if(this.labelValue == "formatted") this.label.innerText = this.formatted_value;
+            else if(this.labelValue == "mapped") this.label.innerText = this.mapped_value;
+            else this.label.innerText = this.value;
+        } 
     }
     writeValue(value, source = "local"){
         this.updateValue(value, source);
@@ -272,10 +281,94 @@ class Controller {
                     control.writeValue(parseInt(e.target.value));
                 });
                 break;
+            case "transport":
+                element = document.createElement("div");
+                element.classList.add("recorder-transport");
+
+                let stopButton = document.createElement("button");
+                stopButton.classList.add("stop");
+                stopButton.dataset.controlId = this.id;
+                stopButton.addEventListener("click", function(e){
+                    let control = controls.map[this.dataset.controlId];
+                    control.writeValue(0);
+                });
+                element.appendChild(stopButton);
+
+                let playButton = document.createElement("button");
+                playButton.classList.add("play");
+                playButton.dataset.controlId = this.id;
+                playButton.addEventListener("click", function(e){
+                    let control = controls.map[this.dataset.controlId];
+                    if(control.value == 3) control.writeValue(5);
+                    else if(control.value == 0) control.writeValue(1);
+                });
+                element.appendChild(playButton);
+
+                let recordButton = document.createElement("button");
+                recordButton.classList.add("record");
+                recordButton.dataset.controlId = this.id;
+                recordButton.addEventListener("click", function(e){
+                    let control = controls.map[this.dataset.controlId];
+                    if(control.value == 0) control.writeValue(3);
+                });
+                element.appendChild(recordButton);
 
         }
         this.element = element;
         return element;
+    }
+}
+
+class Recorder {
+    constructor(){
+        this.transportControl = null;
+        this.statusControl = null;
+        this.positionControl = {};
+        this.remainingControl = {};
+
+        this.fileNameElement = null;
+        this.fileName = "--------_------";
+    }
+    createElement(){
+        this.container = document.createElement("div");
+        this.container.classList.add("recorder");
+
+        this.fileNameElement = document.createElement("span");
+        this.fileNameElement.innerText = this.fileName;
+        this.container.appendChild(this.fileNameElement);
+
+        let positionElement = document.createElement("div");
+        positionElement.classList.add("position","timestamp");
+        for(let time_unit in this.positionControl){
+            let controller = this.positionControl[time_unit];
+            let element = document.createElement("span");
+            controller.label = element;
+            controller.labelValue = "mapped";
+            element.innerText = controller.mapped_value;
+            positionElement.appendChild(element);
+        }
+        this.container.appendChild(positionElement);
+
+        let remainingElement = document.createElement("div");
+        remainingElement.classList.add("remaining","timestamp");
+        for(let time_unit in this.remainingControl){
+            let controller = this.remainingControl[time_unit];
+            let element = document.createElement("span");
+            controller.label = element;
+            controller.labelValue = "mapped";
+            element.innerText = controller.mapped_value;
+            remainingElement.appendChild(element);
+        }
+        this.container.appendChild(remainingElement);
+        
+        let recorderTransportElement = this.transportControl.createElement("transport");
+        this.container.appendChild(recorderTransportElement);
+
+        return this.container;
+    }
+    updateFileName(newFileName){
+        this.fileName = newFileName;
+        this.fileNameElement.innerText = this.fileName;
     }
 }
 
@@ -468,6 +561,28 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
 
 }
 // Recorder
+
+var recorder = new Recorder();
+
+recorder.transportControl = new Controller(
+    id = `recorder_playing`,
+    displayName = `Recorder Playing`,
+    controller_number = 87,
+    channel = 9,
+    value_range = [0, 1],
+    mapping = ["stop","play","paused","armed","recording_paused","recording"],
+    default_value = 0
+);
+recorder.statusControl = new Controller(
+    id = `recorder_status`,
+    displayName = `Recorder Status`,
+    controller_number = 89,
+    channel = 10,
+    value_range = [0, 16],
+    mapping = [,,,,,,,,,"no_channels"],
+    unit = null,
+    default_value = 0
+);
 for(let i = 0; i < 4; i++){
     let time_label;
     switch(i){
@@ -485,38 +600,32 @@ for(let i = 0; i < 4; i++){
             break;
     }
 
-    let recoderPositionControl = new Controller(
+    recorder.positionControl[time_label] = new Controller(
         id = `recorder_position_${time_label}`,
         displayName = `Recorder Position ${time_label}`,
         controller_number = 88,
         channel = 9 + i,
         value_range = [0, 60],
         mapping = null,
-        unit = time_label
+        unit = time_label,
+        default_value = 0,
     );
 
-    let recorderRemainingControl = new Controller(
+    recorder.remainingControl[time_label] = new Controller(
         id = `recorder_remaining${time_label}`,
         displayName = `Storage Remaining ${time_label}`,
-        label = `Storage ${time_label}`,
-        bus = buses["master"],
         controller_number = 88,
         channel = 13 + i,
         value_range = [0, 60],
         mapping = null,
-        unit = time_label.slice(0,1)
+        unit = time_label,
+        default_value = 0,
     );
 }
 
-let recorder_playing_control = new Controller(
-    id = `recorder_playing`,
-    displayName = `Recorder Playing`,
-    controller_number = 87,
-    channel = 9,
-    value_range = [0, 1],
-    mapping = ["stop","play",,"armed",,"recording"],
-    default_value = 0
-);
+
+
+
 
 // Presets
 let preset_select_control = new Controller(

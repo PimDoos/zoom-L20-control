@@ -264,8 +264,9 @@ midi.handleMessage = function(message){
                     }
                     
                 }
-
-
+                if(recorderPatch.fileName){
+                    recorder.updateFileName(recorderPatch.fileName);
+                }
 
                 if(midi.debug.logParsed){
                     console.log(recorderPatch);

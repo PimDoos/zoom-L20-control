@@ -20,8 +20,8 @@ This project was absolutely vibe-coded and might not be safe or efficient. Use a
   - [X] Channel strip names and colors
 
 - [ ] Presets
-- [ ] Mapped fader dB values
+- [X] Mapped fader dB values
 - [ ] More channel strip controls (pan, mute, solo, record/playback, fx, etc.)
 - [ ] Send peaks to websocket clients
-- [ ] Send strip styling to websocket clients
-- [ ] Recorder UI
+- [X] Send strip styling to websocket clients
+- [X] Recorder UI

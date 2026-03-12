@@ -68,9 +68,10 @@ body {
     background-color: #202020;
 }
 
+/* Channel Strip */
 div.channel-strip {
     font: 1em monospace;
-    display: inline-table;
+    display: inline-block;
     margin: 5px 1px;
     width: 70px;
     vertical-align: top;
@@ -147,4 +148,81 @@ div.channel-strip > select.record:has(> option[value="1"]:checked) {
 }
 div.channel-strip > select.record:has(> option[value="2"]:checked) {
     background-color: red;
+}
+
+/* Recorder */
+div.recorder {
+    display: inline-block;
+    font: 1.1em monospace;
+    height: 120px;
+    width: 150px;
+    vertical-align: top;
+    text-align: center;
+    padding: 2px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #303030;
+    
+}
+div.recorder > div.timestamp {
+    width: 100%;
+    height: 20px;
+    overflow: hidden;
+}
+div.recorder > div.timestamp > span::after {
+    content: ":";
+}
+div.recorder > div.timestamp > span:nth-last-child(1)::after {
+    content: "";
+}
+div.recorder > div.position{
+    font-size: 1.4em;
+}
+div.recorder > div.remaining::before {
+    content: "💾";
+}
+div.recorder-transport {
+    height: 32px;
+    position: relative;
+    bottom: 0;
+}
+div.recorder-transport > button {
+    height: 32px;
+    width: 32px;
+    color: white;
+    background: #505050;
+}
+div.recorder-transport > button.stop {
+    background: #505050;
+}
+div.recorder-transport > button.stop:after {
+    content: "⏹"
+}
+div.recorder-transport > button.play:after {
+    content: "▶"
+}
+div.recorder-transport > button.record:after {
+    content: "⏺"
+}
+@keyframes blink-green {
+    0% {background-color: #505050;}
+    50% {background-color: #50F050;}
+    100% {background-color: #505050;}
+}
+@keyframes blink-red {
+    0% {background-color: #505050;}
+    50% {background-color: #F05050;}
+    100% {background-color: #505050;}
+}
+div.recorder-transport[data-value="2"] > button.play, div.recorder-transport[data-value="4"] > button.play {
+    animation: blink-green 1s infinite;
+}
+div.recorder-transport[data-value="4"] > button.record {
+    animation: blink-red 1s infinite;
+}
+div.recorder-transport[data-value="1"] > button.play, div.recorder-transport[data-value="5"] > button.play {
+    background-color: #50F050;
+}
+div.recorder-transport[data-value="3"] > button.record, div.recorder-transport[data-value="5"] > button.record {
+    background-color: #F05050;
 }

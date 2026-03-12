@@ -226,6 +226,12 @@ app.load = function(){
     
     let main = document.querySelector("main");
 
+    /* Recorder */
+
+    let recorderContainer = recorder.createElement();
+    main.appendChild(recorderContainer);
+
+    /* Buses / Channel strips */
     for(const bus_id in buses){
         let bus = buses[bus_id];
         let busElement = bus.createElement();
@@ -241,6 +247,7 @@ app.load = function(){
         }
 
     }
+    
     document.getElementById("initial-load").remove();
 
     // Load persistent settings from localStorage and wire identity change events

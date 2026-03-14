@@ -55,13 +55,13 @@ async def handler(ws: ServerConnection, path=None):
                 await broadcast_peers()
                 continue
 
-            if mtype == 'request_state':
+            elif mtype == 'request_state':
                 # forward to host if present
                 if HOST_WS and HOST_WS.state == State.OPEN:
                     await HOST_WS.send(json.dumps({'type':'request_state'}))
                 continue
 
-            if mtype == 'identity':
+            elif mtype == 'identity':
                 # update nickname/color for this ws and broadcast
                 ws.nick = msg.get('nick')
                 ws.color = msg.get('color')
@@ -69,7 +69,7 @@ async def handler(ws: ServerConnection, path=None):
                 await broadcast_peers()
                 continue
 
-            if mtype == 'control':
+            elif mtype == 'control':
                 # route depending on sender
                 if ws is HOST_WS:
                     # broadcast to all clients
@@ -85,7 +85,7 @@ async def handler(ws: ServerConnection, path=None):
                         logging.warning('Client sent control message but no host is connected')
                 continue
 
-            if mtype == 'full_state':
+            elif mtype == 'full_state':
                 # host sends full state -> broadcast to clients
                 if ws is HOST_WS:
                     data = json.dumps(msg)
@@ -95,7 +95,7 @@ async def handler(ws: ServerConnection, path=None):
                 continue
 
             # Unknown message types: forward to host by default
-            if HOST_WS and HOST_WS.state == State.OPEN and ws is not HOST_WS:
+            elif HOST_WS and HOST_WS.state == State.OPEN and ws is not HOST_WS:
                 await HOST_WS.send(json.dumps(msg))
 
     except Exception as e:

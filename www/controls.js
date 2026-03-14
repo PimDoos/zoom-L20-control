@@ -57,6 +57,7 @@ class MixerStrip {
         this.soloController = null;
         this.recordController = null;
         this.panController = null;
+        this.phaseController = null;
         this.eqControllers = {};
         this.fxControllers = [];
         this.containerElement = null;
@@ -182,6 +183,13 @@ class Controller {
                     out_min = -15;
                     out_max = 15;
                     break;
+                case "eq_midfreq":
+                    out_min = 100;
+                    out_max = 8000;
+                    break;
+                case "eq_lowcut":
+                    out_min = 0;
+                    out_max = 600;
                 case "bool":
                     return value > 0;
                 case "pan":
@@ -575,6 +583,77 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 unit = null,
                 default_value = 50,
             );
+            strip.phaseController = new Controller(
+                id = `${bus_id}_channel_${ch}_phase`,
+                displayName = `${bus.displayName} Channel ${ch} Invert Phase`,
+                controller_number = 10 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,1],
+                mapping = "bool",
+                unit = null,
+                default_value = 0,
+            )
+            strip.eqControllers["off"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_off`,
+                displayName = `${bus.displayName} Channel ${ch} EQ Off`,
+                controller_number = 14 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,1],
+                mapping = "bool",
+                unit = null,
+                default_value = 0,
+            )
+            strip.eqControllers["low_cut"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_low_cut`,
+                displayName = `${bus.displayName} Channel ${ch} EQ Low Cut`,
+                controller_number = 46 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,56],
+                mapping = "eq_lowcut",
+                unit = "Hz",
+                default_value = 0,
+            )
+            strip.eqControllers["low_gain"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_low_gain`,
+                displayName = `${bus.displayName} Channel ${ch} EQ Low Gain`,
+                controller_number = 44 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,60],
+                mapping = "eq_gain",
+                unit = null,
+                default_value = 0,
+            )
+            strip.eqControllers["mid_frequency"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_mid_frequency`,
+                displayName = `${bus.displayName} Channel ${ch} EQ Mid Frequency`,
+                controller_number = 24 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,96],
+                mapping = "eq_midfreq",
+                unit = "Hz",
+                default_value = 0,
+            )
+            strip.eqControllers["mid_gain"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_mid_gain`,
+                displayName = `${bus.displayName} Channel ${ch} EQ Mid Gain`,
+                controller_number = 26 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,60],
+                mapping = "eq_gain",
+                unit = null,
+                default_value = 0,
+            )
+            strip.eqControllers["high_gain"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_high_gain`,
+                displayName = `${bus.displayName} Channel ${ch} EQ High Gain`,
+                controller_number = 20 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,60],
+                mapping = "eq_gain",
+                unit = null,
+                default_value = 0,
+            )
+            
 
             for(let efx = 1; efx <=2; efx++){
                 strip.fxControllers.push(new Controller(

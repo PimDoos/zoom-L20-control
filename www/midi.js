@@ -166,6 +166,7 @@ midi.handleMessage = function(message){
                     0xBC: "record",
                     0xCE: "mute",
                     0xE0: "solo",
+                    0xF2: "phase",
                     0x104: "pan",
                     0x116: "eq_off",
                     0x128: "eq_high_gain",
@@ -210,6 +211,7 @@ midi.handleMessage = function(message){
                             strip.updateColor(channelPatch.color);
                             strip.updateDisplayName(channelPatch.displayName);
                             if(bus_id == "master"){
+                                strip.phaseController.updateValue(channelPatch.phase, "midi");
                                 strip.recordController.updateValue(channelPatch.record, "midi");
                                 strip.muteController.updateValue(channelPatch.mute, "midi");
                                 strip.soloController.updateValue(channelPatch.solo, "midi");

@@ -56,7 +56,8 @@ class MixerStrip {
         this.muteController = null;
         this.soloController = null;
         this.recordController = null;
-        this.eqControllers = [];
+        this.panController = null;
+        this.eqControllers = {};
         this.fxControllers = [];
         this.containerElement = null;
         this.meterElements = [];
@@ -97,7 +98,6 @@ class MixerStrip {
             meter.classList.add("peak");
             meter.min = 0;
             meter.max = 0x0C;
-            meter.high = 8;
             meter.value = 0;
             this.meterElements.push(meter);
             this.containerElement.appendChild(meter);
@@ -109,6 +109,13 @@ class MixerStrip {
         this.containerElement.appendChild(this.valueLabelElement);
 
         if(this.bus.id == "master"){
+            if(this.fxControllers){
+                for(let fxControllerIndex in this.fxControllers){
+                    let fxController = this.fxControllers[fxControllerIndex];
+                    let fxControllerElement = fxController.createElement("fxsend");
+                    this.containerElement.appendChild(fxControllerElement);
+                }
+            }
             if(this.muteController){
                 let muteButton = this.muteController.createElement("toggle");
                 muteButton.classList.add("mute");
@@ -126,8 +133,8 @@ class MixerStrip {
                 let recordSelect = this.recordController.createElement("select");
                 recordSelect.classList.add("record");
                 this.containerElement.appendChild(recordSelect);
-
             }
+            
             
         }
         return this.containerElement;
@@ -169,8 +176,8 @@ class Controller {
             switch(this.mapping){
                 case "fader":
                     return 0x2C * Math.log10(value / 0x52);
-                case "monitor":
-                    return 0x2C * Math.log10(value / 0x52);
+                case "fxsend":
+                    return 0x50 * Math.log10(value / 0x2D);
                 case "eq_gain":
                     out_min = -15;
                     out_max = 15;
@@ -237,9 +244,10 @@ class Controller {
         let element;
         switch(type){
             case "fader":
+            case "fxsend":
                 element = document.createElement("input");
                 element.type = "range";
-                element.classList.add("fader");
+                element.classList.add(type);
                 element.min = this.value_range[0];
                 element.max = this.value_range[1];
                 element.dataset.controlId = this.id;
@@ -405,7 +413,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
         bus = bus,
         channel = "master",
         stereo = true
-    )
+    );
     masterStrip.displayName = bus.displayName;
 
     if (bus_num == 0){
@@ -414,7 +422,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
     }
     masterStrip.levelController = new Controller(
         id = `${bus_id}_level`,
-        displayName = `${BUS_NAMES[bus_num]} Level`,
+        displayName = `${bus.displayName} Level`,
         controller_number = bus_cc,
         channel = bus_ch,
         value_range = [0, 120],
@@ -425,24 +433,24 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
     if(bus_num == 0){
         masterStrip.recordController = new Controller(
             id = `${bus_id}_record`,
-            displayName = `${BUS_NAMES[bus_num]} Record`,
+            displayName = `${bus.displayName} Record`,
             controller_number = bus_cc,
             channel = 9,
             value_range = [0, 2],
             mapping = ["off","play","record"],
             unit = null,
             default_value = 0
-        )
+        );
         masterStrip.muteController = new Controller(
             id = `${bus_id}_mute`,
-            displayName = `${BUS_NAMES[bus_num]} Mute`,
+            displayName = `${bus.displayName} Mute`,
             controller_number = bus_cc,
             channel = 10,
             value_range = [0, 1],
             mapping = "bool",
             unit = null,
             default_value = 0
-        )
+        );
     }
 
     // EFX Returns
@@ -450,27 +458,27 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
         let strip = new MixerStrip(
             id = `${bus_id}_efx_${efx}`,
             bus = bus,
-            channel = "efx"+efx,
+            channel = "efx_" + efx,
             stereo = true
-        )
+        );
         strip.displayName = "EFX " + efx;
         strips[strip.id] = strip;
 
         let cc, ch;
-        if(bus == 0){
+        if(bus_num == 0){
             cc = 80
             ch = 12 + efx;
-        } else if(bus <= 4){
+        } else if(bus_num <= 4){
             cc = 81;
-            ch = efx + ((bus - 1) * 4);
+            ch = efx + ((bus_num - 1) * 4);
         
-        } else if(bus <= 6){
+        } else if(bus_num <= 6){
             cc = 82;
-            ch = efx + ((bus - 5) * 4);
+            ch = efx + ((bus_num - 5) * 4);
         }
         strip.levelController = new Controller(
             id = `${bus_id}_efx_${efx}_level`,
-            displayName = `${BUS_NAMES[bus_num]} EFX ${efx} Level`,
+            displayName = `${bus.displayName} EFX ${efx} Level`,
             controller_number = cc,
             channel = ch,
             value_range = [0, 120],
@@ -478,27 +486,28 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
             unit = "dB",
             default_value = 0x2D
         );
-        strip.muteController = new Controller(
-            id = `${bus_id}_efx_${efx}_mute`,
-            displayName = `${BUS_NAMES[bus_num]} EFX ${efx} Mute`,
-            controller_number = cc,
-            channel = 4 + efx,
-            value_range = [0, 1],
-            mapping = "bool",
-            unit = null,
-            default_value = 0
-        );
-        strip.muteController = new Controller(
-            id = `${bus_id}_efx_${efx}_solo`,
-            displayName = `${BUS_NAMES[bus_num]} EFX ${efx} Solo`,
-            controller_number = cc,
-            channel = 8 + efx,
-            value_range = [0, 1],
-            mapping = "bool",
-            unit = null,
-            default_value = 0
-        );
-        
+        if(bus.id == "master"){
+            strip.muteController = new Controller(
+                id = `${bus_id}_efx_${efx}_mute`,
+                displayName = `${bus.displayName} EFX ${efx} Mute`,
+                controller_number = cc,
+                channel = 4 + efx,
+                value_range = [0, 1],
+                mapping = "bool",
+                unit = null,
+                default_value = 0
+            );
+            strip.soloController = new Controller(
+                id = `${bus_id}_efx_${efx}_solo`,
+                displayName = `${bus.displayName} EFX ${efx} Solo`,
+                controller_number = cc,
+                channel = 8 + efx,
+                value_range = [0, 1],
+                mapping = "bool",
+                unit = null,
+                default_value = 0
+            );
+        }
     }
 
     // Input channel strips
@@ -509,11 +518,11 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
             bus = bus,
             channel = ch,
             stereo = ch > 16
-        )
+        );
 
         strip.levelController = new Controller(
             id = `${bus_id}_channel_${ch}_level`,
-            displayName = `Channel ${ch} Level`,
+            displayName = `${bus.displayName} Channel ${ch} Level`,
             controller_number = 60 + (bus_num * 2) + (ch > 16),
             channel = (ch <= 16) ? ch : ch - 16,
             value_range = [0, 120],
@@ -525,7 +534,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
         if(bus.id == "master"){
             strip.muteController = new Controller(
                 id = `${bus_id}_channel_${ch}_mute`,
-                displayName = `Channel ${ch} Mute`,
+                displayName = `${bus.displayName} Channel ${ch} Mute`,
                 controller_number = 48 + (ch > 16),
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0, 1],
@@ -536,7 +545,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
 
              strip.soloController = new Controller(
                 id = `${bus_id}_channel_${ch}_solo`,
-                displayName = `Channel ${ch} Solo`,
+                displayName = `${bus.displayName} Channel ${ch} Solo`,
                 controller_number = 50 + (ch > 16),
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0, 1],
@@ -545,17 +554,41 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 default_value = 0
             );
 
-
             strip.recordController = new Controller(
                 id = `${bus_id}_channel_${ch}_record`,
-                displayName = `Channel ${ch} Record`,
+                displayName = `${bus.displayName} Channel ${ch} Record`,
                 controller_number = 8 + (ch > 16),
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0, 2],
                 mapping = ["off","play","record"],
                 unit = null,
                 default_value = 0,
-            )
+            );
+
+            strip.panController = new Controller(
+                id = `${bus_id}_channel_${ch}_pan`,
+                displayName = `${bus.displayName} Channel ${ch} Pan`,
+                controller_number = 12 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0, 100],
+                mapping = "pan",
+                unit = null,
+                default_value = 50,
+            );
+
+            for(let efx = 1; efx <=2; efx++){
+                strip.fxControllers.push(new Controller(
+                    id = `${bus_id}_channel_${ch}_efx_${efx}`,
+                    displayName = `${bus.displayName} Channel ${ch} EFX ${efx}`,
+                    controller_number = 52 + ((efx > 1) * 2) + (ch > 16),
+                    channel = (ch <= 16) ? ch : ch - 16,
+                    value_range = [0, 60],
+                    mapping = "fxsend",
+                    unit = "dB",
+                    default_value = 0x00
+                ));
+            }
+            
         }
     }
 

@@ -112,6 +112,11 @@ div.channel-strip.master > input[type="range"].fader {
 div.channel-strip.effect > input[type="range"].fader{
     accent-color: cyan;
 }
+div.channel-strip > input[type="range"].fxsend {
+    width: 100%;
+    accent-color: cyan;
+}
+
 div.channel-strip > meter.peak {
     writing-mode: vertical-lr; 
     direction: rtl;
@@ -172,7 +177,7 @@ div.recorder > div.timestamp {
 div.recorder > div.timestamp > span::after {
     content: ":";
 }
-div.recorder > div.timestamp > span:nth-last-child(1)::after {
+div.recorder > div.timestamp > span:nth-last-child(1)::after, div.recorder > div.timestamp > span:nth-child(1)::after  {
     content: "";
 }
 div.recorder > div.position{

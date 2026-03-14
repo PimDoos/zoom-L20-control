@@ -24,4 +24,7 @@ This project was absolutely vibe-coded and might not be safe or efficient. Use a
 - [ ] More channel strip controls (pan, mute, solo, record/playback, fx, etc.)
 - [ ] Send peaks to websocket clients
 - [X] Send strip styling to websocket clients
-- [X] Recorder UI
+- [ ] Recorder
+  - [X] UI
+  - [ ] Find button SysEx commands
+- [ ] Add channel strip inspector (for EQ, PAN, FX, change color/name)

@@ -51,7 +51,7 @@ app.setRole = function(role){
 // WebSocket networking helpers
 app.ws = null;
 app.role = 'client';
-app.wsUrl = 'ws://127.0.0.1:8765';
+app.wsUrl = `ws://${ location.host ? location.host : "127.0.0.1" }:8765`;
 app.nick = '';
 app.color = '#00aaff';
 
@@ -257,16 +257,18 @@ app.load = function(){
         const savedColor = localStorage.getItem('color');
         if(app.elements.ws_url && savedUrl){
             app.wsUrl = savedUrl;
-            app.elements.ws_url.value = savedUrl;
-        } 
+        }
+        app.elements.ws_url.value = app.wsUrl;
+        
         if(app.elements.nick && savedNick){ 
             app.nick = savedNick;
-            app.elements.nick.value = savedNick; app.nick = savedNick;
-         }
+        }
+        app.elements.nick.value = app.nick;
+
         if(app.elements.color && savedColor){ 
             app.color = savedColor;
-            app.elements.color.value = savedColor; app.color = savedColor; 
         }
+        app.elements.color.value = app.color;
     }catch(e){ }
 
     if(app.elements.ws_url){

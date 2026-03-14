@@ -167,21 +167,21 @@ midi.handleMessage = function(message){
                     0xCE: "mute",
                     0xE0: "solo",
                     0x104: "pan",
-                    0x128: "eq_off",
-                    0x13A: "eq_high_gain",
-                    0x14C: "eq_mid_frequency",
-                    0x15E: "eq_mid_gain",
-                    0x170: "eq_low_gain",
-                    0x182: "eq_low_cut",
-                    0x192: "efx_1",
-                    0x1A6: "efx_2",
-                    0x1B8: "master_level",
-                    0x1CA: "monitor_a_level",
-                    0x1DC: "monitor_b_level",
-                    0x1EE: "monitor_c_level",
-                    0x200: "monitor_d_level",
-                    0x212: "monitor_e_level",
-                    0x224: "monitor_f_level",
+                    0x116: "eq_off",
+                    0x128: "eq_high_gain",
+                    0x13A: "eq_mid_frequency",
+                    0x14C: "eq_mid_gain",
+                    0x15E: "eq_low_gain",
+                    0x170: "eq_low_cut",
+                    0x182: "efx_1",
+                    0x194: "efx_2",
+                    0x1A6: "master_level",
+                    0x1B8: "monitor_a_level",
+                    0x1CA: "monitor_b_level",
+                    0x1DC: "monitor_c_level",
+                    0x1EE: "monitor_d_level",
+                    0x200: "monitor_e_level",
+                    0x212: "monitor_f_level",
                 }
                 for(let i = 0; i < 18; i++){
                     let channelPatch = {number: i < 17 ? i + 1 : i + 2};
@@ -213,6 +213,8 @@ midi.handleMessage = function(message){
                                 strip.recordController.updateValue(channelPatch.record, "midi");
                                 strip.muteController.updateValue(channelPatch.mute, "midi");
                                 strip.soloController.updateValue(channelPatch.solo, "midi");
+                                strip.fxControllers[0].updateValue(channelPatch.efx_1,"midi");
+                                strip.fxControllers[1].updateValue(channelPatch.efx_2,"midi");
                             }
                         }
                         

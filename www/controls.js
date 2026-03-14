@@ -620,7 +620,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0,60],
                 mapping = "eq_gain",
-                unit = null,
+                unit = "dB",
                 default_value = 0,
             )
             strip.eqControllers["mid_frequency"] = new Controller(
@@ -640,7 +640,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0,60],
                 mapping = "eq_gain",
-                unit = null,
+                unit = "dB",
                 default_value = 0,
             )
             strip.eqControllers["high_gain"] = new Controller(
@@ -650,7 +650,7 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0,60],
                 mapping = "eq_gain",
-                unit = null,
+                unit = "dB",
                 default_value = 0,
             )
             
@@ -735,10 +735,6 @@ for(let i = 0; i < 4; i++){
     );
 }
 
-
-
-
-
 // Presets
 let preset_select_control = new Controller(
     id = `preset_select`,
@@ -750,6 +746,30 @@ let preset_select_control = new Controller(
     value_range = [0, 8],
     mapping = "plus1"
 );
+
+const GEQ_BANDS = [25,40,63,100,160,250,400,630,1000,1600,2500,4000,6300,10000,16000];
+for(let i = 0; i < GEQ_BANDS.length; i++){
+    new Controller(
+        id = `geq_band_${i + 1}_gain`,
+        displayName = `G-EQ Band ${i + 1} Gain`,
+        controller_number = 85,
+        channel = i + 1,
+        value_range = [0,60],
+        mapping = "eq_gain",
+        unit = "dB",
+        default_value = 0,
+    )
+}
+new Controller(
+    id = `geq_on`,
+    displayName = `G-EQ On`,
+    controller_number = 85,
+    channel = 16,
+    value_range = [0,1],
+    mapping = "bool",
+    unit = null,
+    default_value = 0,
+)
 
 // Fast lookup index: key = "ch:cc" -> array of controls (preserves duplicates)
 const CONTROL_INDEX = new Map();

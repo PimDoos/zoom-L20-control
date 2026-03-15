@@ -1,0 +1,16 @@
+services:
+  ws:
+    build:
+      context: .
+      dockerfile: docker/ws.Dockerfile
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  www:
+    build:
+      context: .
+      dockerfile: docker/www.Dockerfile
+    ports:
+      - "8080:80"
+    restart: unless-stopped

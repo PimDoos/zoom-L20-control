@@ -220,6 +220,30 @@ app.elements.bleConnectButton.addEventListener('click', function(){
     }
 });
 
+// Read parameters from location.hash (format: #foo=bar&foo2=bar2)
+app.readHashParams = function(){
+    let params = {};
+    try{
+        let raw = (location.hash || '').replace(/^#\/?/, '');
+        if(!raw) return params;
+        raw.split('&').forEach(pair => {
+            if(!pair) return;
+            let parts = pair.split('=');
+            let key = decodeURIComponent(parts[0] || '');
+            let value = decodeURIComponent(parts.slice(1).join('=') || '');
+            if(key) params[key] = value;
+        });
+        // Supported params: wsurl
+        if(params.wsurl){
+            app.wsUrl = params.wsurl;
+            if(app.elements.ws_url) app.elements.ws_url.value = app.wsUrl;
+        }
+    } catch(e){
+        app.log('Error parsing hash params: ' + e);
+    }
+    return params;
+}
+
 app.load = function(){
     app.setStatus("ble","disconnected");
     app.setStatus("ws","disconnected");
@@ -227,9 +251,19 @@ app.load = function(){
     let main = document.querySelector("main");
 
     /* Recorder */
-
     let recorderContainer = recorder.createElement();
     main.appendChild(recorderContainer);
+    
+    /* Inspector */
+    let inspectorElement = inspector.createElement();
+    main.appendChild(inspectorElement);
+
+    inspector.setStrip(buses['master'].strips['master_channel_1']);
+
+    /* Graphic Equalizer */
+    let geqContainer = graphic_eq.createElement();
+    main.appendChild(geqContainer);
+
 
     /* Buses / Channel strips */
     for(const bus_id in buses){
@@ -270,6 +304,11 @@ app.load = function(){
         }
         app.elements.color.value = app.color;
     }catch(e){ }
+
+    // Read any supported parameters from the location hash (overrides saved settings)
+    try{ app.readHashParams(); }catch(e){}
+    // Re-read when the hash changes
+    window.addEventListener('hashchange', app.readHashParams);
 
     if(app.elements.ws_url){
         app.elements.ws_url.addEventListener('change', (e)=>{ 

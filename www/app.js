@@ -311,7 +311,15 @@ app.load = function(){
     }catch(e){ }
 
     // Read any supported parameters from the location hash (overrides saved settings)
-    try{ app.readHashParams(); }catch(e){}
+    let hashParams = {};
+    try{ hashParams = app.readHashParams() || {}; }catch(e){}
+    // If the hash doesn't contain a ws url param, populate it without triggering hashchange
+    try{
+        if(!hashParams.wsurl && !hashParams.ws_url){
+            const newHash = '#wsurl=' + encodeURIComponent(app.wsUrl);
+            history.replaceState(null, '', newHash);
+        }
+    }catch(e){}
     // Re-read when the hash changes
     window.addEventListener('hashchange', app.readHashParams);
 

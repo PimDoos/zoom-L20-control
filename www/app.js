@@ -51,7 +51,12 @@ app.setRole = function(role){
 // WebSocket networking helpers
 app.ws = null;
 app.role = 'client';
-app.wsUrl = `ws://${ location.host ? location.host : "127.0.0.1" }:8765`;
+if(location.host){
+    app.wsUrl = `wss://${location.host}/ws-${self.crypto.randomUUID()}`
+} else {
+    app.wsUrl = 'ws://127.0.0.1:8081';
+}
+
 app.nick = '';
 app.color = '#00aaff';
 

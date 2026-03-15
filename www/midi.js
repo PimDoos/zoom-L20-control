@@ -212,9 +212,16 @@ midi.handleMessage = function(message){
                             strip.updateDisplayName(channelPatch.displayName);
                             if(bus_id == "master"){
                                 strip.phaseController.updateValue(channelPatch.phase, "midi");
+                                strip.panController.updateValue(channelPatch.pan, "midi")
                                 strip.recordController.updateValue(channelPatch.record, "midi");
                                 strip.muteController.updateValue(channelPatch.mute, "midi");
                                 strip.soloController.updateValue(channelPatch.solo, "midi");
+                                strip.eqControllers.off.updateValue(channelPatch.eq_off, "midi");
+                                strip.eqControllers.high_gain.updateValue(channelPatch.eq_high_gain, "midi");
+                                strip.eqControllers.mid_gain.updateValue(channelPatch.eq_mid_gain, "midi");
+                                strip.eqControllers.mid_frequency.updateValue(channelPatch.eq_mid_frequency, "midi");
+                                strip.eqControllers.low_gain.updateValue(channelPatch.eq_low_gain, "midi");
+                                strip.eqControllers.low_cut.updateValue(channelPatch.eq_low_cut, "midi");
                                 strip.fxControllers[0].updateValue(channelPatch.efx_1,"midi");
                                 strip.fxControllers[1].updateValue(channelPatch.efx_2,"midi");
                             }
@@ -222,10 +229,26 @@ midi.handleMessage = function(message){
                         
                     }
                 }
+
+                let fxReturnPatch = {
+                    master: message.values.slice(0x232,0x234),
+                    monitor_a: message.values.slice(0x234,0x236),
+                    monitor_b: message.values.slice(0x236,0x238),
+                    monitor_c: message.values.slice(0x238,0x23A),
+                    monitor_d: message.values.slice(0x23A,0x23C),
+                    monitor_e: message.values.slice(0x23C,0x23E),
+                    monitor_f: message.values.slice(0x23E,0x240),
+                }
+                for(let bus_id in fxReturnPatch){
+                    for(let efx = 1; efx <= 2; efx++){
+                        let controller = controls.map[`${bus_id}_efx_${efx}_level`];
+                        controller.updateValue(fxReturnPatch[bus_id][efx - 1],"midi");
+                    }
+                }
                 
                 let masterPatch = {
-                    record: message.values[0x240],
-                    mute: message.values[0x241],
+                    master_record: message.values[0x240],
+                    master_mute: message.values[0x241],
                 };
                 const MASTER_CONTROL_ADDR = ["master_level", "monitor_a_level", "monitor_b_level", "monitor_c_level", "monitor_d_level", "monitor_e_level", "monitor_f_level"]
                 for(let i in MASTER_CONTROL_ADDR){
@@ -234,6 +257,30 @@ midi.handleMessage = function(message){
                 }
                 if(midi.debug.logParsed){
                     console.log(masterPatch);
+                }
+                for(let control_id in masterPatch){
+                    let control = controls.map[control_id];
+                    control.updateValue(masterPatch[control_id],"midi");
+                }
+
+
+                let eqPatch = {
+                    on: message.values[0x24A],
+                    bands: message.values.slice(0x24B,0x25D),
+                };
+                if(midi.debug.logParsed){
+                    console.log(eqPatch);
+                }
+                for(let i in eqPatch.bands){
+                    let value = eqPatch.bands[i];
+                    let control = controls.map[`geq_band_${i+1}_gain`];
+                    if(control){
+                        control.updateValue(value, "midi");
+                    }
+                }
+                let geqOnControl = controls.map["geq_on"];
+                if(geqOnControl){
+                    geqOnControl.updateValue(eqPatch.on, "midi");
                 }
 
                 let recorderPatch = {

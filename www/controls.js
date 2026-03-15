@@ -60,6 +60,7 @@ class MixerStrip {
         this.phaseController = null;
         this.eqControllers = {};
         this.fxControllers = [];
+
         this.containerElement = null;
         this.meterElements = [];
         this.labelElement = null;
@@ -74,6 +75,12 @@ class MixerStrip {
         this.labelElement = document.createElement("span");
         this.labelElement.classList.add("label");
         this.labelElement.textContent = this.displayName;
+        this.labelElement.dataset.stripId = this.id;
+        this.labelElement.addEventListener("click", function(e){
+            let stripId = e.target.dataset.stripId;
+            let strip = strips[stripId];
+            inspector.setStrip(strip);
+        })
         this.containerElement.appendChild(this.labelElement);
 
         if(this.bus.id == "master"){
@@ -110,13 +117,6 @@ class MixerStrip {
         this.containerElement.appendChild(this.valueLabelElement);
 
         if(this.bus.id == "master"){
-            if(this.fxControllers){
-                for(let fxControllerIndex in this.fxControllers){
-                    let fxController = this.fxControllers[fxControllerIndex];
-                    let fxControllerElement = fxController.createElement("fxsend");
-                    this.containerElement.appendChild(fxControllerElement);
-                }
-            }
             if(this.muteController){
                 let muteButton = this.muteController.createElement("toggle");
                 muteButton.classList.add("mute");
@@ -141,6 +141,87 @@ class MixerStrip {
         return this.containerElement;
         
     }
+    createInspector(){
+        this.inspectorElement = document.createElement("div");
+        this.inspectorElement.classList.add("controls");
+
+        let titleElement = document.createElement("span");
+        titleElement.innerText = this.displayName;
+        titleElement.classList.add("label");
+        this.inspectorElement.appendChild(titleElement);
+
+        function createInspectorRow(controller, label, elementType, extraClass){
+            let row = document.createElement("div");
+            row.classList.add("row");
+
+            let controllerLabel = document.createElement("span");
+            controllerLabel.innerText = label + " | ";
+            row.appendChild(controllerLabel);
+
+            let controllerValueLabel = document.createElement("span");
+            controller.label = controllerValueLabel;
+            controllerValueLabel.innerText = controller.formatted_value;
+            row.appendChild(controllerValueLabel);
+            
+            let controllerElement = controller.createElement(elementType);
+            if(extraClass) controllerElement.classList.add(extraClass);
+            row.appendChild(controllerElement);
+
+            
+
+            return row;
+        }
+       
+        if(this.fxControllers){
+            for(let i in this.fxControllers){
+                this.inspectorElement.appendChild(
+                    createInspectorRow(
+                        this.fxControllers[i],
+                        `EFX Send ${parseInt(i) + 1}`,
+                        "fxsend"
+                    )
+                );
+            }
+        }
+        if(this.panController){
+            this.inspectorElement.appendChild(
+                createInspectorRow(
+                    this.panController,
+                    "Pan",
+                    "fader",
+                    "pan"
+                )
+            );
+        }
+        if(this.eqControllers["off"]){
+            let eqContainer = document.createElement("div");
+            eqContainer.classList.add("parametric-eq");
+
+            let eqOffButton = this.eqControllers["off"].createElement("toggle");
+            eqOffButton.innerText = "EQ OFF";
+            eqOffButton.classList.add("off");
+            eqContainer.appendChild(eqOffButton);
+
+            for(let i in this.eqControllers){
+                let eqController = this.eqControllers[i];
+
+                if(i != "off"){
+                    this.inspectorElement.appendChild(
+                        createInspectorRow(
+                            eqController,
+                            i.replace("_"," "),
+                            "fader"
+                        )
+                    );
+                }
+
+                
+            }
+            this.inspectorElement.appendChild(eqContainer);
+        }
+        return this.inspectorElement;
+    }
+
     updateDisplayName(newDisplayName){
         this.displayName = newDisplayName;
         this.labelElement.innerText = newDisplayName;
@@ -167,11 +248,12 @@ class Controller {
         controls.map[this.id] = this;
     }
     mapValue(value){
-        let in_min = value_range[0];
-        let in_max = value_range[1];
+        let in_min = this.value_range[0];
+        let in_max = this.value_range[1];
         let out_min = 0;
         let out_max = 100;
         if(this.mapping == null) return value;
+
 
         if(typeof this.mapping == "string"){
             switch(this.mapping){
@@ -190,6 +272,7 @@ class Controller {
                 case "eq_lowcut":
                     out_min = 0;
                     out_max = 600;
+                    break;
                 case "bool":
                     return value > 0;
                 case "pan":
@@ -197,6 +280,7 @@ class Controller {
                 case "plus1":
                     return value + 1;
             }
+            value = parseInt(value);
             return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
         } else {
             return this.mapping[value];
@@ -388,6 +472,63 @@ class Recorder {
     }
 }
 
+class GraphicEqualizer {
+    constructor(){
+        this.bandGainControllers = [];
+        this.enabledController = null;
+        this.container = null;
+    }
+    createElement(){
+        this.container = document.createElement("div");
+        this.container.classList.add("graphic-eq");
+
+        let enableButton = this.enabledController.createElement("toggle");
+        enableButton.innerText = "ON";
+        enableButton.classList.add("on");
+        this.container.appendChild(enableButton);
+
+        for(let i in this.bandGainControllers){
+            let bandContainer = document.createElement("span");
+            bandContainer.classList.add("band");
+
+            let controller = this.bandGainControllers[i];
+            let fader = controller.createElement("fader");
+            bandContainer.appendChild(fader);
+
+            let bandLabel = document.createElement("span");
+            bandLabel.innerText = formatNumber(controller.band);
+            bandContainer.appendChild(bandLabel);
+
+            this.container.appendChild(bandContainer);
+        }
+        return this.container;
+    }
+}
+
+class Inspector {
+    constructor(){
+        this.strip = null;
+        this.container = null;
+    }
+    createElement(){
+        this.container = document.createElement("div");
+        this.container.classList.add("inspector");
+        return this.container;
+    }
+    setStrip(strip){
+        let lastStrip = this.strip;
+        if(lastStrip){
+            // Maybe remove the previous control elements
+            this.container.innerHTML = "";
+        }
+        this.strip = strip;
+        let stripInspector = this.strip.createInspector();
+
+        this.container.appendChild(stripInspector);
+    }
+}
+var inspector = new Inspector();
+
 // Returns the first matching control (keeps previous behavior) or null.
 function getControlByCC(controller_number, channel){
     const key = `${channel}:${controller_number}`;
@@ -403,6 +544,14 @@ function writeSystemMessage(bytes){
     midiMessageData = new Uint8Array([0x80,0x80, ...bytes])
     app.midi.characteristic.writeValue(midiMessageData);
     app.log(`Sent system message: ${bytes.join(" ")}`);
+}
+function formatNumber(number){
+    const SUFFIXES = ["","k","M","G","T"];
+    for(let i = 0; i < SUFFIXES.length; i++){
+        let multiplier = Math.pow(10, i * 3);
+        let newNumber = number / multiplier;
+        if(newNumber < 1000) return newNumber + SUFFIXES[i];
+    }
 }
 
 
@@ -593,6 +742,8 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 unit = null,
                 default_value = 0,
             )
+
+            // EQ
             strip.eqControllers["off"] = new Controller(
                 id = `${bus_id}_channel_${ch}_eq_off`,
                 displayName = `${bus.displayName} Channel ${ch} EQ Off`,
@@ -613,6 +764,8 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 unit = "Hz",
                 default_value = 0,
             )
+            strip.eqControllers["low_cut"].band = "low";
+
             strip.eqControllers["low_gain"] = new Controller(
                 id = `${bus_id}_channel_${ch}_eq_low_gain`,
                 displayName = `${bus.displayName} Channel ${ch} EQ Low Gain`,
@@ -621,8 +774,10 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 value_range = [0,60],
                 mapping = "eq_gain",
                 unit = "dB",
-                default_value = 0,
+                default_value = 30,
             )
+            strip.eqControllers["low_gain"].band = "low";
+
             strip.eqControllers["mid_frequency"] = new Controller(
                 id = `${bus_id}_channel_${ch}_eq_mid_frequency`,
                 displayName = `${bus.displayName} Channel ${ch} EQ Mid Frequency`,
@@ -633,6 +788,8 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 unit = "Hz",
                 default_value = 0,
             )
+            strip.eqControllers["mid_frequency"].band = "mid";
+            
             strip.eqControllers["mid_gain"] = new Controller(
                 id = `${bus_id}_channel_${ch}_eq_mid_gain`,
                 displayName = `${bus.displayName} Channel ${ch} EQ Mid Gain`,
@@ -641,8 +798,10 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 value_range = [0,60],
                 mapping = "eq_gain",
                 unit = "dB",
-                default_value = 0,
+                default_value = 30,
             )
+            strip.eqControllers["mid_gain"].band = "mid";
+
             strip.eqControllers["high_gain"] = new Controller(
                 id = `${bus_id}_channel_${ch}_eq_high_gain`,
                 displayName = `${bus.displayName} Channel ${ch} EQ High Gain`,
@@ -651,8 +810,9 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 value_range = [0,60],
                 mapping = "eq_gain",
                 unit = "dB",
-                default_value = 0,
+                default_value = 30,
             )
+            strip.eqControllers["high_gain"].band = "high";
             
 
             for(let efx = 1; efx <=2; efx++){
@@ -747,9 +907,12 @@ let preset_select_control = new Controller(
     mapping = "plus1"
 );
 
+// Graphic Equalizer
+let graphic_eq = new GraphicEqualizer();
+
 const GEQ_BANDS = [25,40,63,100,160,250,400,630,1000,1600,2500,4000,6300,10000,16000];
 for(let i = 0; i < GEQ_BANDS.length; i++){
-    new Controller(
+    let controller = new Controller(
         id = `geq_band_${i + 1}_gain`,
         displayName = `G-EQ Band ${i + 1} Gain`,
         controller_number = 85,
@@ -757,10 +920,12 @@ for(let i = 0; i < GEQ_BANDS.length; i++){
         value_range = [0,60],
         mapping = "eq_gain",
         unit = "dB",
-        default_value = 0,
-    )
+        default_value = 30,
+    );
+    controller.band = GEQ_BANDS[i];
+    graphic_eq.bandGainControllers.push(controller);
 }
-new Controller(
+graphic_eq.enabledController = new Controller(
     id = `geq_on`,
     displayName = `G-EQ On`,
     controller_number = 85,

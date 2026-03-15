@@ -96,6 +96,8 @@ div.channel-strip > label, div.channel-strip > .label {
 }
 div.channel-strip > .label {
     font-size: 1.2em;
+    cursor: pointer;
+    user-select: none;
 }
 
 div.channel-strip > input[type="range"].fader {
@@ -110,10 +112,6 @@ div.channel-strip.master > input[type="range"].fader {
     accent-color: red;
 }
 div.channel-strip.effect > input[type="range"].fader{
-    accent-color: cyan;
-}
-div.channel-strip > input[type="range"].fxsend {
-    width: 100%;
     accent-color: cyan;
 }
 
@@ -166,8 +164,7 @@ div.recorder {
     padding: 2px;
     border: 1px solid #ccc;
     border-radius: 5px;
-    background-color: #303030;
-    
+    background-color: #303030; 
 }
 div.recorder > div.timestamp {
     width: 100%;
@@ -230,4 +227,98 @@ div.recorder-transport[data-value="1"] > button.play, div.recorder-transport[dat
 }
 div.recorder-transport[data-value="3"] > button.record, div.recorder-transport[data-value="5"] > button.record {
     background-color: #F05050;
+}
+
+/* Graphic EQ */
+div.graphic-eq {
+    display: inline-block;
+    font: 1.1em monospace;
+    height: 150px;
+    width: 550px;
+    vertical-align: top;
+    text-align: center;
+    padding: 2px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #303030; 
+}
+div.graphic-eq > button.on {
+    background-color: #505050;
+    vertical-align: top;
+}
+div.graphic-eq > button.on[data-value="1"] {
+    background-color: #50F050;
+}
+div.graphic-eq > .band {
+    display: inline-block;
+    width: 32px;
+    text-align: center;
+    border-left: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    border-collapse: collapse;
+}
+div.graphic-eq > .band > input[type="range"].fader {
+    writing-mode: vertical-lr; 
+    direction: rtl;
+    width: 30px;
+    height: 120px;
+    margin: 0;
+    accent-color: lime;
+    display: block;
+}
+div.graphic-eq > .band > span {
+    display: block;
+    text-align: center;
+}
+
+/* Inspector */
+div.inspector {
+    display: inline-block;
+    font: 1.1em monospace;
+    width: 400px;
+    vertical-align: top;
+    text-align: left;
+    padding: 2px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #303030; 
+}
+div.inspector > .controls > .label {
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+div.inspector .row {
+    text-align: left;
+    display: inline-block;
+    width: 50%;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+}
+div.inspector input[type="range"] {
+    width: 150px;
+    display: block;
+}
+div.inspector input[type="range"].fxsend {
+    accent-color: cyan;
+}
+div.inspector input[type="range"].pan {
+    accent-color: red;
+}
+div.parametric-eq > .band {
+    vertical-align: top;
+}
+div.parametric-eq input[type="range"].fader {
+    width: 100px;
+    height: 30px;
+    margin: 0;
+    accent-color: lime;
+    display: block;
+}
+div.parametric-eq button.off {
+    background-color: #505050;
+    vertical-align: top;
+}
+div.parametric-eq button.off[data-value="1"] {
+    background-color: #f05050;
 }

@@ -56,7 +56,11 @@ midi.handleData = function(event){
 
     let timeStampMsb = midiData[0];
     if(midi.debug.logRaw){
-        console.log(midiData.toHex());
+        let rawString = "";
+        for(let i = 0; i < midiData.length; i++){
+            rawString += `${midiData[i].toString(16).toUpperCase()} `;
+        }
+        console.log(rawString);
     }
 
     let startIndex = 2;
@@ -105,7 +109,7 @@ midi.handleMessage = function(message){
         let commandByte = message.values[3];
         if (commandByte in MIDI_SYSEX_BYTES){
             let command = MIDI_SYSEX_BYTES[commandByte];
-            if(command == "peaks_data"){
+            if(command == "peaks_data" && message.values[4] == 4){
                 let data = message.values.slice(0x06, 0x38);
 
                 /**
@@ -414,4 +418,14 @@ midi.commands.peaks_stop = function(){
 midi.commands.patch_request = function(){
     let message = midi.createSystemMessage(MIDI_SYSEX.patch_request, [0x80]);
     midi.sendMessage(message);
+}
+midi.debug.dumpHex = function(message = midi.debug.lastMessage.values){
+    let hexString = new Uint8Array(message).toHex().toUpperCase();
+    let hexStringPadded = "";
+    for(let i = 0; i < hexString.length; i += 2){
+        hexStringPadded += hexString.slice(i, i + 2);
+        hexStringPadded += " ";
+        if((i % 0x24) == 0) hexStringPadded += "\n";
+    }
+    return hexStringPadded;
 }

@@ -936,6 +936,45 @@ graphic_eq.enabledController = new Controller(
     default_value = 0,
 )
 
+var effects = [];
+const EFFECTS_NAMES = [
+    ["hall_1","hall_2","room_1","plate","church","drumamb","gaterev","vocal_1","vocal_2","vocal_3"],
+    ["hall_3","room_2","spring","delay","analog","pp_dly","vocal_4","chorus_1","chorus_2","cho_dly"],
+]
+// EFX Slots
+for(let efx = 1; efx <= 2; efx++){
+    new Controller(
+        id = `efx_${efx}_type`,
+        displayName = `EFX ${1} Type`,
+        controller_number = 78,
+        channel = efx,
+        value_range = [0,9],
+        mapping = EFFECTS_NAMES[efx - 1],
+        unit = null,
+        default_value = 0,
+    )
+    new Controller(
+        id = `efx_${efx}_parameter_1`,
+        displayName = `EFX ${1} Parameter 1`,
+        controller_number = 78,
+        channel = 4 + (efx * 2),
+        value_range = [0,100],
+        mapping = null,
+        unit = null,
+        default_value = 0,
+    )
+    new Controller(
+        id = `efx_${efx}_parameter_2`,
+        displayName = `EFX ${1} Parameter 2`,
+        controller_number = 78,
+        channel = 12 + (efx * 2),
+        value_range = [0,100],
+        mapping = null,
+        unit = null,
+        default_value = 0,
+    )
+}
+
 // Fast lookup index: key = "ch:cc" -> array of controls (preserves duplicates)
 const CONTROL_INDEX = new Map();
 

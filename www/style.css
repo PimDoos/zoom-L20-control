@@ -123,11 +123,11 @@ div.channel-strip > meter.peak {
     margin-left: 0;
     margin-right:0;
 }
-div.channel-strip > meter.peak[data-signal="true"]{
-    /*background-color: lime;*/
+div.channel-strip:has(meter.peak[data-signal="true"]){
+    border-color: #50F050;
 }
-div.channel-strip > meter.peak[data-clip="true"]{
-    /*background-color: red;*/
+div.channel-strip:has(meter.peak[data-clip="true"]){
+    border-color: #F05050;
 }
 div.channel-strip > .toggle.mute[data-value="0"] {
     background-color: #800000;

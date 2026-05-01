@@ -35,5 +35,5 @@ This project was absolutely vibe-coded and might not be safe or efficient. Use a
   - [X] UI
   - [ ] Find button SysEx commands
 - [X] Add channel strip inspector (for EQ, PAN, FX, change color/name)
-- [ ] Disable controls if not connected to Bluetooth or WebSocket
-- [ ] Show one bus at a time, with tabs to switch between
+- [X] Disable controls if not connected to Bluetooth or WebSocket
+- [X] Show one bus at a time, with tabs to switch between

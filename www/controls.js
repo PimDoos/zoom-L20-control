@@ -429,8 +429,9 @@ class Recorder {
         this.container = document.createElement("div");
         this.container.classList.add("recorder");
 
-        this.fileNameElement = document.createElement("span");
+        this.fileNameElement = document.createElement("div");
         this.fileNameElement.innerText = this.fileName;
+        this.fileNameElement.classList.add("title");
         this.container.appendChild(this.fileNameElement);
 
         let positionElement = document.createElement("div");
@@ -750,29 +751,18 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
                 unit = null,
                 default_value = 0,
             )
-            strip.eqControllers["low_cut"] = new Controller(
-                id = `${bus_id}_channel_${ch}_eq_low_cut`,
-                displayName = `${bus.displayName} Channel ${ch} EQ Low Cut`,
-                controller_number = 46 + (ch > 16),
-                channel = (ch <= 16) ? ch : ch - 16,
-                value_range = [0,56],
-                mapping = "eq_lowcut",
-                unit = "Hz",
-                default_value = 0,
-            )
-            strip.eqControllers["low_cut"].band = "low";
 
-            strip.eqControllers["low_gain"] = new Controller(
-                id = `${bus_id}_channel_${ch}_eq_low_gain`,
-                displayName = `${bus.displayName} Channel ${ch} EQ Low Gain`,
-                controller_number = 44 + (ch > 16),
+            strip.eqControllers["high_gain"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_high_gain`,
+                displayName = `${bus.displayName} Channel ${ch} EQ High Gain`,
+                controller_number = 20 + (ch > 16),
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0,60],
                 mapping = "eq_gain",
                 unit = "dB",
                 default_value = 30,
             )
-            strip.eqControllers["low_gain"].band = "low";
+            strip.eqControllers["high_gain"].band = "high";
 
             strip.eqControllers["mid_frequency"] = new Controller(
                 id = `${bus_id}_channel_${ch}_eq_mid_frequency`,
@@ -798,17 +788,29 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
             )
             strip.eqControllers["mid_gain"].band = "mid";
 
-            strip.eqControllers["high_gain"] = new Controller(
-                id = `${bus_id}_channel_${ch}_eq_high_gain`,
-                displayName = `${bus.displayName} Channel ${ch} EQ High Gain`,
-                controller_number = 20 + (ch > 16),
+            strip.eqControllers["low_cut"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_low_cut`,
+                displayName = `${bus.displayName} Channel ${ch} EQ Low Cut`,
+                controller_number = 46 + (ch > 16),
+                channel = (ch <= 16) ? ch : ch - 16,
+                value_range = [0,56],
+                mapping = "eq_lowcut",
+                unit = "Hz",
+                default_value = 0,
+            )
+            strip.eqControllers["low_cut"].band = "low";
+
+            strip.eqControllers["low_gain"] = new Controller(
+                id = `${bus_id}_channel_${ch}_eq_low_gain`,
+                displayName = `${bus.displayName} Channel ${ch} EQ Low Gain`,
+                controller_number = 44 + (ch > 16),
                 channel = (ch <= 16) ? ch : ch - 16,
                 value_range = [0,60],
                 mapping = "eq_gain",
                 unit = "dB",
                 default_value = 30,
             )
-            strip.eqControllers["high_gain"].band = "high";
+            strip.eqControllers["low_gain"].band = "low";
             
 
             for(let efx = 1; efx <=2; efx++){

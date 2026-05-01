@@ -166,6 +166,9 @@ div.recorder {
     border-radius: 5px;
     background-color: #303030; 
 }
+div.recorder > .title {
+    background-color: #202020;
+}
 div.recorder > div.timestamp {
     width: 100%;
     height: 20px;

@@ -60,7 +60,7 @@ body {
     color: white;
 }
 
-#peers_ui {
+#peers {
     margin-bottom: 20px;
     padding: 10px;
     border: 1px solid #ccc;
@@ -321,4 +321,43 @@ div.parametric-eq button.off {
 }
 div.parametric-eq button.off[data-value="1"] {
     background-color: #f05050;
+}
+
+/* Bus Tabs */
+#bus-tabs {
+    margin-top: 10px;
+}
+#bus-tab-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+#bus-tab-bar .bus-tab-btn {
+    padding: 4px 12px;
+    background-color: #222;
+    color: #ccc;
+    border: 1px solid #555;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    font-size: 0.95em;
+}
+#bus-tab-bar .bus-tab-btn:hover {
+    background-color: #444;
+}
+#bus-tab-bar .bus-tab-btn.active {
+    background-color: #555;
+    color: white;
+    border-bottom-color: #555;
+}
+#bus-tabs .bus-tab-panel {
+    display: none;
+    background-color: #222;
+    padding: 2px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+
+}
+#bus-tabs .bus-tab-panel[data-active] {
+    display: block;
 }

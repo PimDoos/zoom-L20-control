@@ -7,7 +7,7 @@ var app = {
         wsConnectButton: document.getElementById("ws_connect"),
 
         log: document.getElementById("log"),
-        ws_url: document.getElementById("ws_url"),
+        roomId: document.getElementById("room_id"),
         nick: document.getElementById("nick"),
         color: document.getElementById("color"),
         peers: document.getElementById("peers"),
@@ -36,7 +36,12 @@ app.setStatus = function(kind, status){
         else app.setRole('client');
         app.elements.bleConnectButton.dataset["status"] = status;
         app.connectivity.bleConnected = status == "connected";
-    } 
+    }
+    if(app.connectivity.bleConnected || app.connectivity.wsConnected){
+        setControlsEnabled(true);
+    } else {
+        setControlsEnabled(false);
+    }
 }
 app.setRole = function(role){
     app.role = role;
@@ -51,10 +56,11 @@ app.setRole = function(role){
 // WebSocket networking helpers
 app.ws = null;
 app.role = 'client';
-if(location.host){
-    app.wsUrl = `wss://${location.host}/ws-${self.crypto.randomUUID()}`
+app.roomId = self.crypto.randomUUID();
+if(location.host && location.hostname !== 'localhost'){
+    app.wsBaseUrl = `wss://${location.host}/ws`;
 } else {
-    app.wsUrl = 'ws://127.0.0.1:8081';
+    app.wsBaseUrl = 'ws://127.0.0.1:8081/ws';
 }
 
 app.nick = '';
@@ -126,7 +132,14 @@ app.handleWsMessage = function(event){
 app.wsConnect = function(){
     app.setStatus('ws', 'connecting');
 
-    try{
+    try {
+        app.wsUrl = app.wsBaseUrl + '/' + app.roomId;
+    } catch(e){
+        app.setStatus('ws','error');
+        app.log('WebSocket URL build failed: ' + e);
+        return;
+    }
+    try {
         app.ws = new WebSocket(app.wsUrl);
         app.ws.addEventListener('open', () => {
             app.setStatus('ws', 'connected');
@@ -139,9 +152,20 @@ app.wsConnect = function(){
                 app.wsSendFullState();
             }
         });
+        app.wsRetryCount = 0;
         app.ws.addEventListener('message', app.handleWsMessage);
-        app.ws.addEventListener('close', () => { app.setStatus('ws','disconnected'); app.log('WebSocket closed'); });
-        app.ws.addEventListener('error', (e) => { app.setStatus('ws','error'); app.log('WebSocket error'); });
+        app.ws.addEventListener('close', () => { 
+            app.setStatus('ws','disconnected'); app.log('WebSocket closed'); 
+            app.updatePeersUI([]);
+        });
+        app.ws.addEventListener('error', (e) => { 
+            app.setStatus('ws','error'); app.log('WebSocket error'); 
+            app.updatePeersUI([]);
+            if(app.wsRetryCount < 5){
+                setTimeout(app.wsConnect, 1000 * Math.pow(2, app.wsRetryCount));
+                app.wsRetryCount++;
+            }
+        });
     } catch(e){
         app.setStatus('ws','error');
         app.log('WebSocket connect error: ' + e);
@@ -238,10 +262,9 @@ app.readHashParams = function(){
             let value = decodeURIComponent(parts.slice(1).join('=') || '');
             if(key) params[key] = value;
         });
-        // Supported params: wsurl
-        if(params.wsurl){
-            app.wsUrl = params.wsurl;
-            if(app.elements.ws_url) app.elements.ws_url.value = app.wsUrl;
+        // Supported params: room
+        if(params.room){
+            app.roomId = params.room;
         }
     } catch(e){
         app.log('Error parsing hash params: ' + e);
@@ -271,12 +294,23 @@ app.load = function(){
 
 
     /* Buses / Channel strips */
+    let busTabsContainer = document.createElement("div");
+    busTabsContainer.id = "bus-tabs";
+
+    let busTabBar = document.createElement("div");
+    busTabBar.id = "bus-tab-bar";
+    busTabsContainer.appendChild(busTabBar);
+
+    let isFirst = true;
     for(const bus_id in buses){
+
         let bus = buses[bus_id];
         let busElement = bus.createElement();
-        main.appendChild(busElement);
-        let stripContainer = bus.stripsContainer;
+        busElement.classList.add("bus-tab-panel");
+        
+        busTabsContainer.appendChild(busElement);
 
+        let stripContainer = bus.stripsContainer;
         for(const strip_id in bus.strips){
             let strip = bus.strips[strip_id];
             let stripElement = strip.createElement();
@@ -285,51 +319,69 @@ app.load = function(){
             stripContainer.appendChild(stripElement);
         }
 
+        let tabButton = document.createElement("button");
+        tabButton.classList.add("bus-tab-btn");
+        tabButton.dataset.busId = bus_id;
+        tabButton.textContent = bus.displayName;
+        tabButton.addEventListener("click", function(){
+            document.querySelectorAll("#bus-tabs .bus-tab-panel").forEach(p => delete p.dataset.active);
+            document.querySelectorAll("#bus-tab-bar .bus-tab-btn").forEach(b => b.classList.remove("active"));
+            busElement.dataset.active = "true";
+            tabButton.classList.add("active");
+        });
+
+        if(isFirst){
+            busElement.dataset.active = "true";
+            tabButton.classList.add("active");
+            isFirst = false;
+        }
+        busTabBar.appendChild(tabButton);
     }
+
+    main.appendChild(busTabsContainer);
     
     document.getElementById("initial-load").remove();
+    setControlsEnabled(false);
 
     // Load persistent settings from localStorage and wire identity change events
     try{
-        const savedUrl = localStorage.getItem('ws_url');
         const savedNick = localStorage.getItem('nick');
         const savedColor = localStorage.getItem('color');
-        if(app.elements.ws_url && savedUrl){
-            app.wsUrl = savedUrl;
+        const savedRoom = localStorage.getItem('room');
+        if(app.elements.roomId && savedRoom){
+            app.roomId = savedRoom;
         }
-        app.elements.ws_url.value = app.wsUrl;
-        
         if(app.elements.nick && savedNick){ 
             app.nick = savedNick;
         }
-        app.elements.nick.value = app.nick;
-
         if(app.elements.color && savedColor){ 
             app.color = savedColor;
         }
-        app.elements.color.value = app.color;
+        
     }catch(e){ }
 
     // Read any supported parameters from the location hash (overrides saved settings)
-    let hashParams = {};
-    try{ hashParams = app.readHashParams() || {}; }catch(e){}
-    // If the hash doesn't contain a ws url param, populate it without triggering hashchange
     try{
-        if(!hashParams.wsurl && !hashParams.ws_url){
-            const newHash = '#wsurl=' + encodeURIComponent(app.wsUrl);
+        let hashParams = app.readHashParams();
+        if(!hashParams.room){
+            const newHash = '#room=' + encodeURIComponent(app.roomId);
             history.replaceState(null, '', newHash);
         }
-    }catch(e){}
+    } catch(e){}
+    
     // Re-read when the hash changes
     window.addEventListener('hashchange', app.readHashParams);
 
-    if(app.elements.ws_url){
-        app.elements.ws_url.addEventListener('change', (e)=>{ 
-            app.wsUrl = e.target.value;
-            try{ localStorage.setItem('ws_url', e.target.value); }catch(_){} 
+    if(app.elements.roomId){
+        app.elements.roomId.value = app.roomId;
+        app.elements.roomId.addEventListener('change', (e)=>{ 
+            app.roomId = e.target.value;
+            try{ localStorage.setItem('room', e.target.value); }catch(_){} 
         });
+        
     }
     if(app.elements.nick){
+        app.elements.nick.value = app.nick;
         app.elements.nick.addEventListener('change', (e)=>{
             app.nick = e.target.value;
             try{ localStorage.setItem('nick', app.nick); }catch(_){}
@@ -337,6 +389,7 @@ app.load = function(){
         });
     }
     if(app.elements.color){
+        app.elements.color.value = app.color;
         app.elements.color.addEventListener('change', (e)=>{
             app.color = e.target.value;
             try{ localStorage.setItem('color', app.color); }catch(_){}
@@ -380,11 +433,16 @@ app.load = function(){
             dot.style.marginRight = '4px';
             item.appendChild(dot);
             const text = document.createElement('span');
-            text.textContent = (p.nick || 'unnamed') + (p.role ? ` (${p.role})` : '');
+            text.textContent = (p.nick || 'unnamed')
+            if(p.role == 'host') text.textContent += ' (host)';
+            text.style.color = p.color || '#999';
             item.appendChild(text);
             app.elements.peers.appendChild(item);
         });
     }
+
+    // Try WS connect
+    app.wsConnect();
 
     app.log("App loaded");
 }

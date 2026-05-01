@@ -29,10 +29,6 @@ class MixerBus {
         this.busElement.id = this.id + "_bus";
         this.busElement.classList.add("bus");
 
-        let busHeader = document.createElement("h2");
-        busHeader.innerText = this.displayName;
-        this.busElement.appendChild(busHeader);
-
         this.stripsContainer = document.createElement("div");
         this.stripsContainer.classList.add("strips");
         this.stripsContainer.id = this.id + "_strips";
@@ -990,3 +986,10 @@ function buildControlIndex(){
 
 // Build index at load time
 buildControlIndex();
+
+function setControlsEnabled(enabled){
+    let controlElements = document.querySelectorAll("[data-control-id]");
+    controlElements.forEach(element => {
+        element.disabled = !enabled;
+    });
+}

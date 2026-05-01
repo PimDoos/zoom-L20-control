@@ -14,6 +14,9 @@ import asyncio
 import json
 import logging
 import argparse
+import signal
+import signal
+import sys
 from websockets import State, serve, ServerConnection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -22,6 +25,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
 ROOM_HOSTS: dict[str, ServerConnection] = {}
 # map path -> set of client websockets
 ROOM_CLIENTS: dict[str, set[ServerConnection]] = {}
+
+stop_event = asyncio.Event()
 
 async def handler(ws: ServerConnection, path=None):
     global HOST_WS, CLIENTS
@@ -46,13 +51,24 @@ async def handler(ws: ServerConnection, path=None):
             mtype = msg.get('type')
 
             if mtype == 'role':
-                role = msg.get('role')
-                ws.role = role
+                new_role = msg.get('role')
                 ws.nick = msg.get('nick')
                 ws.color = msg.get('color')
+                # remove previous registration if role is changing
+                if role is not None and role != new_role:
+                    if role == 'host' and ROOM_HOSTS.get(room) is ws:
+                        ROOM_HOSTS.pop(room, None)
+                    elif role != 'host':
+                        clients = ROOM_CLIENTS.get(room)
+                        if clients:
+                            clients.discard(ws)
+                            if not clients:
+                                ROOM_CLIENTS.pop(room, None)
+                role = new_role
+                ws.role = role
                 if role == 'host':
                     prev = ROOM_HOSTS.get(room)
-                    if prev is not None and getattr(prev, 'state', None) == State.OPEN:
+                    if prev is not None and prev is not ws and getattr(prev, 'state', None) == State.OPEN:
                         logging.info('Replacing existing host in room %s', room)
                     ROOM_HOSTS[room] = ws
                     logging.info('Registered host: %s nick=%s room=%s', peer, ws.nick, room)
@@ -154,16 +170,26 @@ async def broadcast_peers(room: str):
         await asyncio.gather(*[t.send(data) for t in targets], return_exceptions=True)
 
 async def main(host: str, port: int):
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGTERM, signal_handler)
     async with serve(handler, host, port):
         logging.info('WebSocket server listening on %s:%d', host, port)
-        await asyncio.Future()  # run forever
+        await stop_event.wait()  # run until stop_event is set
 
 
 p = argparse.ArgumentParser()
 p.add_argument('--host', default='0.0.0.0')
 p.add_argument('--port', type=int, default=8081)
 args = p.parse_args()
+
+def signal_handler():
+    stop_event.set()
+
+
+
 try:
     asyncio.run(main(args.host, args.port))
 except KeyboardInterrupt:
-    logging.info('Server stopped')
+    pass
+
+logging.info('Server stopped')

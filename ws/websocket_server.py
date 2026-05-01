@@ -17,6 +17,7 @@ import argparse
 import signal
 import signal
 import sys
+import time
 from websockets import State, serve, ServerConnection
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -25,6 +26,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(mess
 ROOM_HOSTS: dict[str, ServerConnection] = {}
 # map path -> set of client websockets
 ROOM_CLIENTS: dict[str, set[ServerConnection]] = {}
+# map room -> last warning time for control message with no host
+ROOM_CONTROL_WARNING_TIMES: dict[str, float] = {}
 
 stop_event = asyncio.Event()
 
@@ -109,7 +112,12 @@ async def handler(ws: ServerConnection, path=None):
                     if host and getattr(host, 'state', None) == State.OPEN:
                         await host.send(json.dumps(msg))
                     else:
-                        logging.warning('Client sent control message but no host is connected in room %s', ws.room)
+                        # rate limit warning to once per minute per room
+                        now = time.time()
+                        last_warning = ROOM_CONTROL_WARNING_TIMES.get(ws.room)
+                        if last_warning is None or (now - last_warning) >= 60:
+                            logging.warning('Client sent control message but no host is connected in room %s', ws.room)
+                            ROOM_CONTROL_WARNING_TIMES[ws.room] = now
                 continue
 
             elif mtype == 'full_state':
@@ -143,6 +151,9 @@ async def handler(ws: ServerConnection, path=None):
                 logging.info('Client disconnected: %s room=%s (clients=%d)', peer, r, len(clients))
                 if not clients:
                     ROOM_CLIENTS.pop(r, None)
+            # clean up warning tracking if room is now empty
+            if r and not ROOM_HOSTS.get(r) and not ROOM_CLIENTS.get(r):
+                ROOM_CONTROL_WARNING_TIMES.pop(r, None)
         # broadcast updated peers for the room after disconnect
         try:
             if r:
@@ -184,8 +195,6 @@ args = p.parse_args()
 
 def signal_handler():
     stop_event.set()
-
-
 
 try:
     asyncio.run(main(args.host, args.port))

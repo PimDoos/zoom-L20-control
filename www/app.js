@@ -284,9 +284,16 @@ app.load = function(){
             text: 'Join my Zoom L20 Control room: ' + app.roomId,
             url: location.origin + location.pathname + '#room=' + encodeURIComponent(app.roomId),
         };
+        
         if(navigator.canShare(shareData)){
             app.elements.shareButton.dataset["canshare"] = true;
             app.elements.shareButton.addEventListener('click', function(){
+                // Re-create shareData in case roomId has changed
+                let shareData = {
+                    title: 'Zoom L20 Control',
+                    text: 'Join my Zoom L20 Control room: ' + app.roomId,
+                    url: location.origin + location.pathname + '#room=' + encodeURIComponent(app.roomId),
+                };
                 navigator.share(shareData).catch(e => {
                     app.log('Error sharing: ' + e);
                 });

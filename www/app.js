@@ -471,6 +471,13 @@ app.load = function(){
     // Try WS connect
     app.wsConnect();
 
+    // Reconnect WS when page becomes visible again (mostly for mobile)
+    document.addEventListener('visibilitychange', function(){
+        if(document.visibilityState === 'visible' && !app.connectivity.wsConnected){
+            app.wsConnect();
+        }
+    });
+
     app.log("App loaded");
 }
 

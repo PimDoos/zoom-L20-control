@@ -5,6 +5,7 @@ var app = {
     elements:{
         bleConnectButton: document.getElementById("ble_connect"),
         wsConnectButton: document.getElementById("ws_connect"),
+        shareButton: document.getElementById("share_link"),
 
         log: document.getElementById("log"),
         roomId: document.getElementById("room_id"),
@@ -275,6 +276,25 @@ app.readHashParams = function(){
 app.load = function(){
     app.setStatus("ble","disconnected");
     app.setStatus("ws","disconnected");
+
+    
+    if(app.elements.shareButton){
+        let shareData = {
+            title: 'Zoom L20 Control',
+            text: 'Join my Zoom L20 Control room: ' + app.roomId,
+            url: location.origin + location.pathname + '#room=' + encodeURIComponent(app.roomId),
+        };
+        if(navigator.canShare(shareData)){
+            app.elements.shareButton.dataset["canshare"] = true;
+            app.elements.shareButton.addEventListener('click', function(){
+                navigator.share(shareData).catch(e => {
+                    app.log('Error sharing: ' + e);
+                });
+            });
+        } else {
+            app.elements.shareButton.dataset["canshare"] = false;
+        }
+    }
     
     let main = document.querySelector("main");
 

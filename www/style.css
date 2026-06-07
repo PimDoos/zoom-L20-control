@@ -90,6 +90,14 @@ div.channel-strip {
     background-color: #303030;
     
 }
+div.channel-strip > .channel-number {
+    font-size: 0.9em;
+    color: #AAAAAA;
+    display: block;
+    cursor: pointer;
+    user-select: none;
+}
+
 div.channel-strip[data-color-id="0"] > .label{ background-color: #202020; }
 div.channel-strip[data-color-id="1"] > .label{ background-color: #FF0000; }
 div.channel-strip[data-color-id="2"] > .label{ background-color: #FFAA00; color: black;}
@@ -134,9 +142,18 @@ div.channel-strip > meter.peak {
 div.channel-strip:has(meter.peak[data-signal="true"]){
     border-color: #50F050;
 }
+div.channel-strip:has(meter.peak[data-signal="true"]) > .channel-number {
+    background-color: #50C050;
+    color: White;
+}
 div.channel-strip:has(meter.peak[data-clip="true"]){
     border-color: #F05050;
 }
+div.channel-strip:has(meter.peak[data-clip="true"]) > .channel-number {
+    background-color: #C05050;
+    color: White;
+}
+
 div.channel-strip > .toggle.mute[data-value="0"] {
     background-color: #800000;
 }

@@ -67,16 +67,26 @@ class MixerStrip {
         this.containerElement = document.createElement("div");
         this.containerElement.classList.add("channel-strip");
         this.containerElement.dataset.colorId = this.color;
+        let openInspector = (e) => {
+            let stripId = e.target.dataset.stripId;
+            let strip = strips[stripId];
+            inspector.setStrip(strip);
+        }
+
+        this.channelNumberElement = document.createElement("span");
+        this.channelNumberElement.classList.add("channel-number");
+        this.channelNumberElement.dataset.stripId = this.id;
+        this.channelNumberElement.addEventListener("click", openInspector);
+        if(Number.isInteger(this.channel)){
+            this.channelNumberElement.textContent = this.channel;
+        }
+        this.containerElement.appendChild(this.channelNumberElement);
 
         this.labelElement = document.createElement("span");
         this.labelElement.classList.add("label");
         this.labelElement.textContent = this.displayName;
         this.labelElement.dataset.stripId = this.id;
-        this.labelElement.addEventListener("click", function(e){
-            let stripId = e.target.dataset.stripId;
-            let strip = strips[stripId];
-            inspector.setStrip(strip);
-        })
+        this.labelElement.addEventListener("click", openInspector);
         this.containerElement.appendChild(this.labelElement);
 
         if(this.bus.id == "master"){
@@ -214,6 +224,28 @@ class MixerStrip {
                 
             }
             this.inspectorElement.appendChild(eqContainer);
+        }
+
+        if(this.fxSlot){
+            let efx_num = this.channel.split("_")[1];
+            let efx_type = this.fxSlot.typeController;
+            this.inspectorElement.appendChild(
+                createInspectorRow(
+                    efx_type,
+                    "Type",
+                    "select"
+                )
+            );
+            for(let i in this.fxSlot.parameterControllers){
+                let param = this.fxSlot.parameterControllers[i];
+                this.inspectorElement.appendChild(
+                    createInspectorRow(
+                        param,
+                        `Parameter ${parseInt(i) + 1}`,
+                        "fader"
+                    )
+                )
+            }
         }
         return this.inspectorElement;
     }
@@ -526,6 +558,15 @@ class Inspector {
 }
 var inspector = new Inspector();
 
+class EffectSlot {
+    constructor(id, displayName){
+        this.id = id;
+        this.displayName = displayName;
+        this.typeController = null;
+        this.parameterControllers = [];
+    }
+}
+
 // Returns the first matching control (keeps previous behavior) or null.
 function getControlByCC(controller_number, channel){
     const key = `${channel}:${controller_number}`;
@@ -552,7 +593,54 @@ function formatNumber(number){
 }
 
 
-// Controller definitions
+//  --- Controller definitions ---
+
+// Effects
+var effects = {};
+const EFFECTS_NAMES = [
+    ["hall_1","hall_2","room_1","plate","church","drumamb","gaterev","vocal_1","vocal_2","vocal_3"],
+    ["hall_3","room_2","spring","delay","analog","pp_dly","vocal_4","chorus_1","chorus_2","cho_dly"],
+]
+// EFX Slots
+for(let efx = 1; efx <= 2; efx++){
+    let efx_id = `efx_${efx}`;
+    let effectSlot = new EffectSlot(efx_id, `EFX ${efx}`);
+    effects[efx_id] = effectSlot;
+    
+    effectSlot.typeController = new Controller(
+        id = `efx_${efx}_type`,
+        displayName = `EFX ${efx} Type`,
+        controller_number = 78,
+        channel = efx,
+        value_range = [0,9],
+        mapping = EFFECTS_NAMES[efx - 1],
+        unit = null,
+        default_value = 0,
+    );
+    effectSlot.parameterControllers.push(new Controller(
+        id = `efx_${efx}_parameter_1`,
+        displayName = `EFX ${efx} Parameter 1`,
+        controller_number = 78,
+        channel = 4 + (efx * 2),
+        value_range = [0,100],
+        mapping = null,
+        unit = null,
+        default_value = 0,
+    ));
+    effectSlot.parameterControllers.push(new Controller(
+        id = `efx_${efx}_parameter_2`,
+        displayName = `EFX ${efx} Parameter 2`,
+        controller_number = 78,
+        channel = 12 + (efx * 2),
+        value_range = [0,100],
+        mapping = null,
+        unit = null,
+        default_value = 0,
+    ));
+}
+
+
+// Buses and strips
 for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
     // Bus level
     let bus_cc = 83;
@@ -640,6 +728,8 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
             unit = "dB",
             default_value = 0x2D
         );
+        strip.fxSlot = effects[`efx_${efx}`];
+
         if(bus.id == "master"){
             strip.muteController = new Controller(
                 id = `${bus_id}_efx_${efx}_mute`,
@@ -934,44 +1024,7 @@ graphic_eq.enabledController = new Controller(
     default_value = 0,
 )
 
-var effects = [];
-const EFFECTS_NAMES = [
-    ["hall_1","hall_2","room_1","plate","church","drumamb","gaterev","vocal_1","vocal_2","vocal_3"],
-    ["hall_3","room_2","spring","delay","analog","pp_dly","vocal_4","chorus_1","chorus_2","cho_dly"],
-]
-// EFX Slots
-for(let efx = 1; efx <= 2; efx++){
-    new Controller(
-        id = `efx_${efx}_type`,
-        displayName = `EFX ${1} Type`,
-        controller_number = 78,
-        channel = efx,
-        value_range = [0,9],
-        mapping = EFFECTS_NAMES[efx - 1],
-        unit = null,
-        default_value = 0,
-    )
-    new Controller(
-        id = `efx_${efx}_parameter_1`,
-        displayName = `EFX ${1} Parameter 1`,
-        controller_number = 78,
-        channel = 4 + (efx * 2),
-        value_range = [0,100],
-        mapping = null,
-        unit = null,
-        default_value = 0,
-    )
-    new Controller(
-        id = `efx_${efx}_parameter_2`,
-        displayName = `EFX ${1} Parameter 2`,
-        controller_number = 78,
-        channel = 12 + (efx * 2),
-        value_range = [0,100],
-        mapping = null,
-        unit = null,
-        default_value = 0,
-    )
-}
+
 
 // Fast lookup index: key = "ch:cc" -> array of controls (preserves duplicates)
 const CONTROL_INDEX = new Map();

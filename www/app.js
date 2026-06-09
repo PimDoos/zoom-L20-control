@@ -23,7 +23,12 @@ var app = {
 
 app.log = function(message){
     var log = app.elements.log;
-    log.value += message + "\n";
+    var lines = log.value ? log.value.split("\n") : [];
+    lines.push(message);
+    if(lines.length > 100){
+        lines = lines.slice(lines.length - 100);
+    }
+    log.value = lines.join("\n");
     log.scrollTop = log.scrollHeight;
 }
 

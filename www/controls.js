@@ -352,7 +352,11 @@ class Controller {
     writeValue(value, source = "local"){
         this.updateValue(value, source);
         if(app.connectivity.wsConnected && source != "ws"){
-            app.wsSend({type:'control', id: this.id, value: Number(this.value)});
+            const now = Date.now();
+            if(now - (this._lastWsSend || 0) >= 200){
+                this._lastWsSend = now;
+                app.wsSend({type:'control', id: this.id, value: Number(this.value)});
+            }
         }
         // Write to BLE if connected
         if(app.connectivity.bleConnected && source != "midi"){
@@ -375,6 +379,11 @@ class Controller {
                 element.value = this.value;
                 element.addEventListener("input", function(e){
                     let control = controls.map[this.dataset.controlId];
+                    control.writeValue(e.target.value);
+                });
+                element.addEventListener("change", function(e){
+                    let control = controls.map[this.dataset.controlId];
+                    control._lastWsSend = 0;
                     control.writeValue(e.target.value);
                 });
                 break;

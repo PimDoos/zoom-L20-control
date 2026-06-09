@@ -349,9 +349,10 @@ class Controller {
             else this.label.innerText = this.value;
         } 
     }
-    writeValue(value, source = "local"){
+    writeValue(value, source = "local", sendWs = true){
         this.updateValue(value, source);
-        if(app.connectivity.wsConnected && source != "ws"){
+        if(sendWs && app.connectivity.wsConnected && source != "ws"){
+            this._lastWsSend = Date.now();
             app.wsSend({type:'control', id: this.id, value: Number(this.value)});
         }
         // Write to BLE if connected
@@ -374,6 +375,16 @@ class Controller {
                 element.id = `${type}-${this.id}`;
                 element.value = this.value;
                 element.addEventListener("input", function(e){
+                    let control = controls.map[this.dataset.controlId];
+                    const now = Date.now();
+                    const elapsed = now - (control._lastWsSend || 0);
+                    if(elapsed >= 200){
+                        control.writeValue(e.target.value);
+                    } else {
+                        control.writeValue(e.target.value, "local", false);
+                    }
+                });
+                element.addEventListener("change", function(e){
                     let control = controls.map[this.dataset.controlId];
                     control.writeValue(e.target.value);
                 });

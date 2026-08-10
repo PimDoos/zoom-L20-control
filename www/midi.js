@@ -138,13 +138,16 @@ midi.handleMessage = function(message){
                     console.log(channelPeak, channelSignal, channelClip);
                 }
 
+                // Channel peaks are pre-fader, so the same reading applies to
+                // that channel's strip on every bus tab, not just Master.
                 for(let i = 1; i <= 20; i++){
-                    let meterElement = document.getElementById(`master_channel_${i}_meter`);
-                    if(meterElement){
-                        meterElement.value = channelPeak[i - 1];
-                        meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
-                        meterElement.dataset["clip"] = channelClip[i - 1] > 0;
-
+                    for(let bus_id in buses){
+                        let meterElement = document.getElementById(`${bus_id}_channel_${i}_meter`);
+                        if(meterElement){
+                            meterElement.value = channelPeak[i - 1];
+                            meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                            meterElement.dataset["clip"] = channelClip[i - 1] > 0;
+                        }
                     }
                 }
                 for(let i = 21; i <= 24; i++){

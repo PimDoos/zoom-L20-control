@@ -12,6 +12,7 @@ var app = {
         nick: document.getElementById("nick"),
         color: document.getElementById("color"),
         peers: document.getElementById("peers"),
+        hostWarning: document.getElementById("host_warning"),
     },
     bleMidi: {},
     map: {},
@@ -49,6 +50,34 @@ app.setStatus = function(kind, status){
         setControlsEnabled(false);
     }
 }
+app.warnHostOnly = function(controller){
+    let banner = app.elements.hostWarning;
+    if(!banner) return;
+    banner.textContent = `Only the host can change ${controller.displayName}.`;
+    banner.classList.add('visible');
+    clearTimeout(app._hostWarningTimer);
+    app._hostWarningTimer = setTimeout(() => {
+        banner.classList.remove('visible');
+    }, 3000);
+}
+
+app.armUnmutedChannels = function(){
+    let bus = buses['master'];
+    if(!bus) return;
+    let armed = 0;
+    for(let strip_id in bus.strips){
+        let strip = bus.strips[strip_id];
+        // Only arm actual input channels, not the bus's own master strip or EFX returns.
+        if(!Number.isInteger(strip.channel)) continue;
+        if(!strip.recordController || !strip.muteController) continue;
+        if(strip.muteController.value == 0){
+            strip.recordController.writeValue(2);
+            armed++;
+        }
+    }
+    app.log(`Armed ${armed} unmuted channel(s) for recording`);
+}
+
 app.setRole = function(role){
     app.role = role;
     if(app.ws){
@@ -445,6 +474,13 @@ app.load = function(){
     if(patchRequestButton){
         patchRequestButton.addEventListener("click", (e)=>{
             midi.commands.patch_request();
+        });
+    }
+
+    let armUnmutedButton = document.getElementById("arm_unmuted");
+    if(armUnmutedButton){
+        armUnmutedButton.addEventListener("click", (e)=>{
+            app.armUnmutedChannels();
         });
     }
 

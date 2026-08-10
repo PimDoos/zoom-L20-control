@@ -389,3 +389,26 @@ div.parametric-eq button.off[data-value="1"] {
 #bus-tabs .bus-tab-panel[data-active] {
     display: block;
 }
+/* ---------- Host-only warning toast ---------- */
+.host-warning {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    z-index: 50;
+    max-width: calc(100vw - 32px);
+    padding: 10px 18px;
+    border-radius: 6px;
+    background-color: #A03030;
+    border: 1px solid #FF6060;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -8px);
+    transition: opacity .2s ease, transform .2s ease;
+}
+.host-warning.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}

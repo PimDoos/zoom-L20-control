@@ -12,7 +12,6 @@ var app = {
         nick: document.getElementById("nick"),
         color: document.getElementById("color"),
         peers: document.getElementById("peers"),
-        hostWarning: document.getElementById("host_warning"),
     },
     bleMidi: {},
     map: {},
@@ -50,17 +49,6 @@ app.setStatus = function(kind, status){
         setControlsEnabled(false);
     }
 }
-app.warnHostOnly = function(controller){
-    let banner = app.elements.hostWarning;
-    if(!banner) return;
-    banner.textContent = `Only the host can change ${controller.displayName}.`;
-    banner.classList.add('visible');
-    clearTimeout(app._hostWarningTimer);
-    app._hostWarningTimer = setTimeout(() => {
-        banner.classList.remove('visible');
-    }, 3000);
-}
-
 app.armUnmutedChannels = function(){
     let bus = buses['master'];
     if(!bus) return;

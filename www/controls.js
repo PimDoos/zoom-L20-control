@@ -4,10 +4,6 @@ var strips = {};
 
 controls.map = {};
 
-// How long a fader/fxsend must be idle (ms) before its value is synced
-// to the mixer/peers. Keeps fast drags from flooding BLE MIDI and stuttering.
-const SLIDER_DEBOUNCE_MS = 60;
-
 const BUS_NAMES = {
     0: "Master",
     1: "Monitor A",
@@ -356,29 +352,14 @@ class Controller {
             else this.label.innerText = this.value;
         } 
     }
-    writeValue(value, source = "local", debounceMs = 0){
-        // Restrict host-only controls (e.g. the Master level fader) so remote
-        // clients can't push a value to the mixer, only observe host changes.
-        if(this.hostOnly && source === "local" && app.role !== "host"){
-            if(this.element) this.element.value = this.value;
-            if(app.warnHostOnly) app.warnHostOnly(this);
-            return;
-        }
+    writeValue(value, source = "local"){
         this.updateValue(value, source);
-        if(this._syncTimeout){
-            clearTimeout(this._syncTimeout);
-            this._syncTimeout = null;
-        }
-        if(debounceMs > 0){
-            this._syncTimeout = setTimeout(() => this.sendValue(value, source), debounceMs);
-        } else {
-            this.sendValue(value, source);
-        }
-    }
-    sendValue(value, source){
-        this._syncTimeout = null;
         if(app.connectivity.wsConnected && source != "ws"){
-            app.wsSend({type:'control', id: this.id, value: Number(value)});
+            const now = Date.now();
+            if(now - (this._lastWsSend || 0) >= 200){
+                this._lastWsSend = now;
+                app.wsSend({type:'control', id: this.id, value: Number(this.value)});
+            }
         }
         // Write to BLE if connected
         if(app.connectivity.bleConnected && source != "midi"){
@@ -400,14 +381,12 @@ class Controller {
                 element.id = `${type}-${this.id}`;
                 element.value = this.value;
                 element.addEventListener("input", function(e){
-                    // Debounce outgoing sync while actively dragging so the
-                    // mixer/peers aren't flooded and the fader doesn't stutter.
                     let control = controls.map[this.dataset.controlId];
-                    control.writeValue(e.target.value, "local", SLIDER_DEBOUNCE_MS);
+                    control.writeValue(e.target.value);
                 });
                 element.addEventListener("change", function(e){
-                    // Drag finished: sync the final value immediately.
                     let control = controls.map[this.dataset.controlId];
+                    control._lastWsSend = 0;
                     control.writeValue(e.target.value);
                 });
                 break;
@@ -706,10 +685,6 @@ for(let bus_num = 0; bus_num < Object.entries(BUS_NAMES).length; bus_num++){
         default_value = 0x2D
     );
     if(bus_num == 0){
-        // The Master bus output feeds everyone downstream, so remote (non-host)
-        // clients can view but not push changes to it directly.
-        masterStrip.levelController.hostOnly = true;
-
         masterStrip.recordController = new Controller(
             id = `${bus_id}_record`,
             displayName = `${bus.displayName} Record`,

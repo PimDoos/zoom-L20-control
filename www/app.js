@@ -448,6 +448,16 @@ app.load = function(){
         });
     }
 
+    let fullWidthCheckbox = document.getElementById('full_width');
+    if(fullWidthCheckbox){
+        try{
+            fullWidthCheckbox.checked = localStorage.getItem('fullWidth') === 'true';
+        } catch(e){}
+        fullWidthCheckbox.addEventListener('change', (e)=>{
+            try{ localStorage.setItem('fullWidth', e.target.checked); }catch(_){}
+        });
+    }
+
     // Helper to update peers list UI
     app.updatePeersUI = function(peers){
         if(!app.elements.peers) return;

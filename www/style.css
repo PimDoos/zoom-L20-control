@@ -98,6 +98,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     margin: 0 auto;
     padding: 12px 12px 48px;
 }
+body:has(#full_width:checked) .app-shell {
+    max-width: none;
+}
 
 /* ---------- Top bar ---------- */
 .topbar {
@@ -360,10 +363,16 @@ main > progress#initial-load {
     height: 6px;
     accent-color: var(--accent);
 }
-main > .recorder,
-main > .inspector,
-main > .graphic-eq {
+main > .recorder {
+    flex: 0 1 200px;
+    max-width: 240px;
+}
+main > .inspector {
     flex: 1 1 260px;
+    max-width: 100%;
+}
+main > .graphic-eq {
+    flex: 2 1 420px;
     max-width: 100%;
 }
 main > #bus-tabs {
@@ -473,7 +482,12 @@ div.channel-strip.effect > input[type="range"].fader{
     accent-color: var(--accent-2);
 }
 
-div.channel-strip > meter.peak {
+div.channel-strip > .meter-row {
+    display: flex;
+    justify-content: center;
+    gap: 2px;
+}
+div.channel-strip meter.peak {
     -webkit-appearance: none;
     appearance: none;
     writing-mode: vertical-lr;
@@ -486,18 +500,18 @@ div.channel-strip > meter.peak {
     background: var(--bg-soft);
     border: 1px solid var(--border);
 }
-div.channel-strip > meter.peak::-webkit-meter-bar {
+div.channel-strip meter.peak::-webkit-meter-bar {
     background: var(--bg-soft);
     border: none;
     border-radius: 4px;
 }
-div.channel-strip > meter.peak::-webkit-meter-optimum-value {
+div.channel-strip meter.peak::-webkit-meter-optimum-value {
     background: var(--success);
 }
-div.channel-strip > meter.peak::-webkit-meter-suboptimum-value {
+div.channel-strip meter.peak::-webkit-meter-suboptimum-value {
     background: var(--warn);
 }
-div.channel-strip > meter.peak::-webkit-meter-even-less-good-value {
+div.channel-strip meter.peak::-webkit-meter-even-less-good-value {
     background: var(--danger);
 }
 div.channel-strip:has(meter.peak[data-signal="true"]){

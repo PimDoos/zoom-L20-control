@@ -90,6 +90,9 @@ class MixerStrip {
         this.containerElement.appendChild(this.labelElement);
 
         if(this.bus.id == "master"){
+            let meterRow = document.createElement("div");
+            meterRow.classList.add("meter-row");
+
             let meter = document.createElement("meter");
             meter.id = `${this.id}_meter`;
             meter.classList.add("peak");
@@ -98,24 +101,26 @@ class MixerStrip {
             meter.high = 8;
             meter.value = 0;
             this.meterElements.push(meter);
-            this.containerElement.appendChild(meter);
+            meterRow.appendChild(meter);
+
+            if(this.stereo){
+                let meterR = document.createElement("meter");
+                meterR.id = `${this.id.replace(this.channel, this.channel + 1)}_meter`;
+                meterR.classList.add("peak");
+                meterR.min = 0;
+                meterR.max = 0x0C;
+                meterR.high = 8;
+                meterR.value = 0;
+                this.meterElements.push(meterR);
+                meterRow.appendChild(meterR);
+            }
+
+            this.containerElement.appendChild(meterRow);
         }
 
         let stripFader = this.levelController.createElement("fader");
         this.containerElement.appendChild(stripFader);
 
-        
-
-        if(this.stereo && this.bus.id == "master"){
-            let meter = document.createElement("meter");
-            meter.id = `${this.id.replace(this.channel, this.channel + 1)}_meter`;
-            meter.classList.add("peak");
-            meter.min = 0;
-            meter.max = 0x0C;
-            meter.value = 0;
-            this.meterElements.push(meter);
-            this.containerElement.appendChild(meter);
-        }
         this.valueLabelElement = document.createElement("label");
         this.valueLabelElement.textContent = this.levelController.formatted_value;
         this.valueLabelElement.htmlFor = stripFader.id;

@@ -1,15 +1,6 @@
 const MIDI_SERVICE_UID            = '03B80E5A-EDE8-4B33-A751-6CE34EC4C700'.toLowerCase();
 const MIDI_IO_CHARACTERISTIC_UID  = '7772E5DB-3868-4112-A1A9-F2669D106BF3'.toLowerCase();
 
-// Keep the browser chrome/PWA theme color in sync with --bg from style.css
-// instead of hardcoding a second copy of the color in index.html.
-(function(){
-    let meta = document.querySelector('meta[name="theme-color"]');
-    if(!meta) return;
-    let bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-    if(bg) meta.setAttribute('content', bg);
-})();
-
 var app = {
     elements:{
         bleConnectButton: document.getElementById("ble_connect"),

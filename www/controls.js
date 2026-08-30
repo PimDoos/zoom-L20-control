@@ -131,14 +131,14 @@ class MixerStrip {
             if(this.muteController){
                 let muteButton = this.muteController.createElement("toggle");
                 muteButton.classList.add("mute");
-                muteButton.innerText = "M";
+                muteButton.innerText = "Mute";
                 this.containerElement.appendChild(muteButton);
             }
             
             if(this.soloController){
                 let soloButton = this.soloController.createElement("toggle");
                 soloButton.classList.add("solo");
-                soloButton.innerText = "S";
+                soloButton.innerText = "Solo";
                 this.containerElement.appendChild(soloButton);
             }
             if(this.recordController){
@@ -166,7 +166,7 @@ class MixerStrip {
             row.classList.add("row");
 
             let controllerLabel = document.createElement("span");
-            controllerLabel.innerText = label + " | ";
+            controllerLabel.innerText = label;
             row.appendChild(controllerLabel);
 
             let controllerValueLabel = document.createElement("span");

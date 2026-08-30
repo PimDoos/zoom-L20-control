@@ -290,7 +290,7 @@ app.load = function(){
             url: location.origin + location.pathname + '#room=' + encodeURIComponent(app.roomId),
         };
         
-        if(navigator.canShare(shareData)){
+        if(navigator.canShare && navigator.canShare(shareData)){
             app.elements.shareButton.dataset["canshare"] = true;
             app.elements.shareButton.addEventListener('click', function(){
                 // Re-create shareData in case roomId has changed
@@ -448,23 +448,29 @@ app.load = function(){
         });
     }
 
+    let fullWidthCheckbox = document.getElementById('full_width');
+    if(fullWidthCheckbox){
+        try{
+            fullWidthCheckbox.checked = localStorage.getItem('fullWidth') === 'true';
+        } catch(e){}
+        fullWidthCheckbox.addEventListener('change', (e)=>{
+            try{ localStorage.setItem('fullWidth', e.target.checked); }catch(_){}
+        });
+    }
+
     // Helper to update peers list UI
     app.updatePeersUI = function(peers){
         if(!app.elements.peers) return;
         app.elements.peers.innerHTML = '';
         peers.forEach(p => {
             const item = document.createElement('div');
-            item.style.display = 'inline-block';
-            item.style.marginRight = '8px';
+            item.className = 'peer-badge';
             const dot = document.createElement('span');
-            dot.style.display = 'inline-block';
-            dot.style.width = '12px';
-            dot.style.height = '12px';
-            dot.style.borderRadius = '6px';
+            dot.className = 'peer-dot';
             dot.style.background = p.color || '#999';
-            dot.style.marginRight = '4px';
             item.appendChild(dot);
             const text = document.createElement('span');
+            text.className = 'peer-name';
             text.textContent = (p.nick || 'unnamed')
             if(p.role == 'host') text.textContent += ' (host)';
             text.style.color = p.color || '#999';

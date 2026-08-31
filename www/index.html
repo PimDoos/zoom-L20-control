@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
         <title>L20 Control</title>
         <link rel="stylesheet" href="style.css">
         <script src="app.js" defer></script>
@@ -10,48 +10,79 @@
         <script src="midi.js"></script>
     </head>
     <body>
-        <h1>L20 Control</h1>
-        <div id="connectivity">
-            <div id="ble_ui">
-                <button id="ble_connect" ckass="status">ᚼᛒ Bluetooth</button>
-            </div>
-            |
-            <div id="ws_ui">
-                <button id="ws_connect" class="status">🌐 Websocket</button>
-            </div>
-            |
-            <div id="share_ui">
-                <button id="share_link">🔗 Share Link</button>
-            </div>
-            |
-            <div id="user_ui">
-                <input id="nick" type="text" value="" size="12" placeholder="name">
-                <input id="color" type="color" value="#00aaff">
-            </div>    
-        </div>
-        <label for="show_settings">Show Settings</label>
-        <input type="checkbox" id="show_settings">
-        <div id="settings_ui">
-            <div id="room_ui">
-                <label for="roomId">Room ID:</label>
-                <input id="room_id" type="text" size="36" placeholder="Room ID">
-            </div>
-            <div id="log_ui">
-                <h3>Log</h3>
-                <textarea id="log" rows="10" cols="50" readonly></textarea><br/>
-            </div>
-            <div id="mixer_settings_ui">
-                <h3>Mixer Settings</h3>
-                <input type="checkbox" id="peaks_enabled">
-                <label for="peaks_enabled">Enable Peaks</label>
-                <button id="patch_request">Fetch Patch</button>
-                <button id="arm_unmuted">Arm Unmuted Channels</button>
-            </div>
-        </div>
+        <div class="app-shell">
+            <header class="topbar">
+                <div class="brand">
+                    <span class="brand-icon" aria-hidden="true">🎚️</span>
+                    <h1>L20 Control</h1>
+                </div>
 
-        <div id="peers"></div>
-        <main>
-            <progress id="initial-load"></progress>
-        </main>
+                <div id="connectivity" class="connectivity">
+                    <div id="ble_ui" class="conn-item">
+                        <button id="ble_connect" class="status-btn">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="btn-icon" aria-hidden="true">ᚼᛒ</span>
+                            <span class="btn-label">Bluetooth</span>
+                        </button>
+                    </div>
+                    <div id="ws_ui" class="conn-item">
+                        <button id="ws_connect" class="status-btn">
+                            <span class="status-dot" aria-hidden="true"></span>
+                            <span class="btn-icon" aria-hidden="true">🌐</span>
+                            <span class="btn-label">Websocket</span>
+                        </button>
+                    </div>
+                    <div id="share_ui" class="conn-item">
+                        <button id="share_link" class="status-btn ghost">
+                            <span class="btn-icon" aria-hidden="true">🔗</span>
+                            <span class="btn-label">Share Link</span>
+                        </button>
+                    </div>
+                    <div id="user_ui" class="conn-item user-item">
+                        <input id="nick" type="text" value="" size="12" placeholder="Name">
+                        <input id="color" type="color" value="#00aaff" title="Your color">
+                    </div>
+
+                    <input type="checkbox" id="show_settings" class="visually-hidden">
+                    <label for="show_settings" class="icon-btn settings-toggle" title="Settings">⚙️</label>
+                </div>
+            </header>
+
+            <div id="settings_ui" class="settings-panel">
+                <div class="settings-grid">
+                    <div id="room_ui" class="settings-card">
+                        <h3>Room</h3>
+                        <label for="room_id">Room ID</label>
+                        <input id="room_id" type="text" placeholder="Room ID">
+                    </div>
+                    <div id="mixer_settings_ui" class="settings-card">
+                        <h3>Mixer Settings</h3>
+                        <label class="switch-row">
+                            <input type="checkbox" id="peaks_enabled">
+                            <span>Enable Peaks</span>
+                        </label>
+                        <button id="patch_request" class="btn">Fetch Patch</button>
+                        <button id="arm_unmuted" class="btn">Arm Unmuted Channels</button>
+                    </div>
+                    <div id="layout_settings_ui" class="settings-card">
+                        <h3>Layout</h3>
+                        <label class="switch-row">
+                            <input type="checkbox" id="full_width">
+                            <span>Full width (show all channels without scrolling)</span>
+                        </label>
+                    </div>
+                    <div id="log_ui" class="settings-card log-card">
+                        <h3>Log</h3>
+                        <textarea id="log" rows="8" cols="50" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div id="peers" class="peers-bar"></div>
+
+            <main>
+                <progress id="initial-load"></progress>
+            </main>
+        </div>
     </body>
 </html>

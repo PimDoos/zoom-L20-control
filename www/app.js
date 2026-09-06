@@ -255,6 +255,8 @@ app.bleConnect = function(){
         app.bleMidi.characteristic.addEventListener('characteristicvaluechanged', midi.handleData);
         app.setStatus('ble','connected');
         midi.commands.patch_request();
+    })
+    .then(() => {
         if(app.peaksEnabled){
             midi.commands.peaks_start();
         }

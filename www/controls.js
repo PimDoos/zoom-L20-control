@@ -91,13 +91,18 @@ class MixerStrip {
 
         // Input channel peak levels are pre-fader (shared across buses), so
         // show meters for channel strips on every bus tab, not just Master.
-        let showsMeter = this.bus.id == "master" || Number.isInteger(this.channel);
+        let showsMeter = this.bus.id == "master" || Number.isInteger(this.channel) || this.channel.toString().startsWith("efx");
         if(showsMeter){
             let meterRow = document.createElement("div");
             meterRow.classList.add("meter-row");
 
+            
             let meter = document.createElement("meter");
-            meter.id = `${this.id}_meter`;
+            if(Number.isInteger(this.channel)){
+                meter.id = `${this.id}_meter`;
+            } else {
+                meter.id = `${this.id}_l_meter`;
+            }
             meter.classList.add("peak");
             meter.min = 0;
             meter.max = 0x0C;
@@ -108,7 +113,11 @@ class MixerStrip {
 
             if(this.stereo){
                 let meterR = document.createElement("meter");
-                meterR.id = `${this.id.replace(this.channel, this.channel + 1)}_meter`;
+                if(Number.isInteger(this.channel)){
+                    meterR.id = `${this.id.replace(this.channel, this.channel + 1)}_meter`;
+                } else {
+                    meterR.id = `${this.id}_r_meter`;
+                }
                 meterR.classList.add("peak");
                 meterR.min = 0;
                 meterR.max = 0x0C;

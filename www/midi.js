@@ -142,7 +142,37 @@ midi.handleMessage = function(message){
                 // that channel's strip on every bus tab, not just Master.
                 for(let i = 1; i <= 20; i++){
                     for(let bus_id in buses){
-                        let meterElement = document.getElementById(`${bus_id}_channel_${i}_meter`);
+                        bus = buses[bus_id];
+                        
+                        strip = bus.strips[`${bus_id}_channel_${i}`];
+                        if(!strip) continue;
+                        
+                        let meterElement = strip.meterElements[0];
+                        if(meterElement){
+                            meterElement.value = channelPeak[i - 1];
+                            meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                            meterElement.dataset["clip"] = channelClip[i - 1] > 0;
+                        }
+
+                        if(strip.stereo){
+                            i++;
+                            let meterElementR = strip.meterElements[1];
+                            if(meterElementR){
+                                meterElementR.value = channelPeak[i - 1];
+                                meterElementR.dataset["signal"] = channelSignal[i - 1] > 0;
+                                meterElementR.dataset["clip"] = channelClip[i - 1] > 0;
+                            }
+                        }
+                    }
+                }
+                for(let i = 21; i <= 24; i++){
+                    let efx_num = Math.round((i - 20) / 2);
+                    for(let bus_id in buses){
+                        bus = buses[bus_id];
+                        strip = bus.strips[`${bus_id}_efx_${efx_num}`];
+                        if(!strip) continue;
+
+                        let meterElement = strip.meterElements[(i - 21) % 2];
                         if(meterElement){
                             meterElement.value = channelPeak[i - 1];
                             meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
@@ -150,16 +180,8 @@ midi.handleMessage = function(message){
                         }
                     }
                 }
-                for(let i = 21; i <= 24; i++){
-                    let meterElement = document.getElementById(`master_efx${i-20}_meter`);
-                    if(meterElement){
-                        meterElement.value = channelPeak[i - 1];
-                        meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
-                        meterElement.dataset["clip"] = channelClip[i - 1] > 0;
-                    }
-                }
                 for(let i = 49; i <= 50; i++){
-                    let meterElement = document.getElementById(`master_${(i % 2) ? "l" : "r"}_meter`);
+                    let meterElement = buses.master.strips.master.meterElements[i - 49];
                     if(meterElement){
                         meterElement.value = channelPeak[i - 1];
                         meterElement.dataset["signal"] = channelSignal[i - 1] > 0;

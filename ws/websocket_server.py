@@ -131,6 +131,17 @@ async def handler(ws: ServerConnection, path=None):
                         await asyncio.gather(*coros, return_exceptions=True)
                 continue
 
+            elif mtype == 'meter':
+                # host sends meter data -> broadcast to clients in same room
+                host = ROOM_HOSTS.get(ws.room)
+                if ws is host:
+                    data = json.dumps(msg)
+                    clients = ROOM_CLIENTS.get(ws.room, set())
+                    coros = [c.send(data) for c in list(clients) if getattr(c, 'state', None) == State.OPEN]
+                    if coros:
+                        await asyncio.gather(*coros, return_exceptions=True)
+                continue
+
             # Unknown message types: forward to host in same room by default
             elif ROOM_HOSTS.get(ws.room) and getattr(ROOM_HOSTS[ws.room], 'state', None) == State.OPEN and ws is not ROOM_HOSTS[ws.room]:
                 await ROOM_HOSTS[ws.room].send(json.dumps(msg))

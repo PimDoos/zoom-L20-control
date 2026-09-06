@@ -11,6 +11,7 @@ var app = {
         roomId: document.getElementById("room_id"),
         nick: document.getElementById("nick"),
         color: document.getElementById("color"),
+        enablePeaks: document.getElementById('peaks_enabled'),
         peers: document.getElementById("peers"),
     },
     bleMidi: {},
@@ -114,6 +115,21 @@ app.wsSendFullState = function(){
     }
     app.wsSend(message);
 }
+app.wsSendMeter = function(channelPeak, channelSignal, channelClip){
+    // Rate limit to 2 Hz
+    if(!app.lastMeterSendTime) app.lastMeterSendTime = 0;
+    let now = Date.now();
+    if(now - app.lastMeterSendTime < 500) return;
+    app.lastMeterSendTime = now;
+
+    let message = {
+        type: "meter",
+        peaks: channelPeak,
+        signal: channelSignal,
+        clip: channelClip,
+    }
+    app.wsSend(message);
+}
 
 app.handleWsMessage = function(event){
     try{
@@ -142,10 +158,8 @@ app.handleWsMessage = function(event){
             if(Array.isArray(message.peers)){
                 app.updatePeersUI(message.peers);
             }
-        } else if(message.type == 'peak'){
-            for(let strip_id in message.strips){
-                let strip = strips[strip_id];
-            }
+        } else if(message.type == 'meter'){
+            updateMeters(message.peaks, message.signal, message.clip);
         }
     } catch(e){
         app.log('WS message parse error: ' + e);
@@ -241,6 +255,8 @@ app.bleConnect = function(){
         app.bleMidi.characteristic.addEventListener('characteristicvaluechanged', midi.handleData);
         app.setStatus('ble','connected');
         midi.commands.patch_request();
+    })
+    .then(() => {
         if(app.peaksEnabled){
             midi.commands.peaks_start();
         }
@@ -397,6 +413,10 @@ app.load = function(){
         const savedNick = localStorage.getItem('nick');
         const savedColor = localStorage.getItem('color');
         const savedRoom = localStorage.getItem('room');
+        const savedPeaksEnabled = localStorage.getItem('peaksEnabled');
+        if(app.elements.enablePeaks && savedPeaksEnabled){
+            app.peaksEnabled = savedPeaksEnabled === 'true';
+        }
         if(app.elements.roomId && savedRoom){
             app.roomId = savedRoom;
         }
@@ -446,10 +466,11 @@ app.load = function(){
         });
     }
 
-    let peaksEnabledCheckbox = document.getElementById('peaks_enabled');
-    if(peaksEnabledCheckbox){
-        peaksEnabledCheckbox.addEventListener('change', (e)=>{
+    if(app.elements.enablePeaks){
+        app.elements.enablePeaks.checked = app.peaksEnabled;
+        app.elements.enablePeaks.addEventListener('change', (e)=>{
             app.peaksEnabled = e.target.checked;
+            try{ localStorage.setItem('peaksEnabled', app.peaksEnabled); }catch(_){}
             if(!app.peaksEnabled){
                 midi.commands.peaks_stop();
             } else {

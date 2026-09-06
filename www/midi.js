@@ -137,35 +137,12 @@ midi.handleMessage = function(message){
                 if(midi.debug.logParsed){
                     console.log(channelPeak, channelSignal, channelClip);
                 }
+                if(app.ws){
+                    app.wsSendMeter(channelPeak, channelSignal, channelClip);
+                }
 
-                // Channel peaks are pre-fader, so the same reading applies to
-                // that channel's strip on every bus tab, not just Master.
-                for(let i = 1; i <= 20; i++){
-                    for(let bus_id in buses){
-                        let meterElement = document.getElementById(`${bus_id}_channel_${i}_meter`);
-                        if(meterElement){
-                            meterElement.value = channelPeak[i - 1];
-                            meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
-                            meterElement.dataset["clip"] = channelClip[i - 1] > 0;
-                        }
-                    }
-                }
-                for(let i = 21; i <= 24; i++){
-                    let meterElement = document.getElementById(`master_efx${i-20}_meter`);
-                    if(meterElement){
-                        meterElement.value = channelPeak[i - 1];
-                        meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
-                        meterElement.dataset["clip"] = channelClip[i - 1] > 0;
-                    }
-                }
-                for(let i = 49; i <= 50; i++){
-                    let meterElement = document.getElementById(`master_${(i % 2) ? "l" : "r"}_meter`);
-                    if(meterElement){
-                        meterElement.value = channelPeak[i - 1];
-                        meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
-                        meterElement.dataset["clip"] = channelClip[i - 1] > 0;
-                    }
-                }
+                updateMeters(channelPeak, channelSignal, channelClip);
+
             } else if(command == "patch_response"){
                 const decoder = new TextDecoder();
                 const CHANNEL_CONTROL_ADDR = {

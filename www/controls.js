@@ -36,6 +36,51 @@ class MixerBus {
 
         return this.busElement;
     }
+    updateMeters(channelPeak, channelSignal, channelClip){
+        for(let i = 1; i <= 20; i++){
+            let strip = this.strips[`${this.id}_channel_${i}`];
+            if(!strip) continue;
+            
+            let meterElement = strip.meterElements[0];
+            if(meterElement){
+                meterElement.value = channelPeak[i - 1];
+                meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                meterElement.dataset["clip"] = channelClip[i - 1] > 0;
+            }
+
+            if(strip.stereo){
+                i++;
+                let meterElementR = strip.meterElements[1];
+                if(meterElementR){
+                    meterElementR.value = channelPeak[i - 1];
+                    meterElementR.dataset["signal"] = channelSignal[i - 1] > 0;
+                    meterElementR.dataset["clip"] = channelClip[i - 1] > 0;
+                }
+            }
+        }
+        for(let i = 21; i <= 24; i++){
+            let efx_num = Math.round((i - 20) / 2);
+            let strip = this.strips[`${this.id}_efx_${efx_num}`];
+            if(!strip) continue;
+
+            let meterElement = strip.meterElements[(i - 21) % 2];
+            if(meterElement){
+                meterElement.value = channelPeak[i - 1];
+                meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                meterElement.dataset["clip"] = channelClip[i - 1] > 0;
+            }
+        }
+        if(this.id == "master"){
+            for(let i = 49; i <= 50; i++){
+                let meterElement = this.strips.master.meterElements[i - 49];
+                if(meterElement){
+                    meterElement.value = channelPeak[i - 1];
+                    meterElement.dataset["signal"] = channelSignal[i - 1] > 0;
+                    meterElement.dataset["clip"] = channelClip[i - 1] > 0;
+                }
+            }
+        }
+    }
 }
 class MixerStrip {
     constructor(id, bus, channel, stereo = false) {
@@ -91,13 +136,18 @@ class MixerStrip {
 
         // Input channel peak levels are pre-fader (shared across buses), so
         // show meters for channel strips on every bus tab, not just Master.
-        let showsMeter = this.bus.id == "master" || Number.isInteger(this.channel);
+        let showsMeter = this.bus.id == "master" || Number.isInteger(this.channel) || this.channel.toString().startsWith("efx");
         if(showsMeter){
             let meterRow = document.createElement("div");
             meterRow.classList.add("meter-row");
 
+            
             let meter = document.createElement("meter");
-            meter.id = `${this.id}_meter`;
+            if(Number.isInteger(this.channel)){
+                meter.id = `${this.id}_meter`;
+            } else {
+                meter.id = `${this.id}_l_meter`;
+            }
             meter.classList.add("peak");
             meter.min = 0;
             meter.max = 0x0C;
@@ -108,7 +158,11 @@ class MixerStrip {
 
             if(this.stereo){
                 let meterR = document.createElement("meter");
-                meterR.id = `${this.id.replace(this.channel, this.channel + 1)}_meter`;
+                if(Number.isInteger(this.channel)){
+                    meterR.id = `${this.id.replace(this.channel, this.channel + 1)}_meter`;
+                } else {
+                    meterR.id = `${this.id}_r_meter`;
+                }
                 meterR.classList.add("peak");
                 meterR.min = 0;
                 meterR.max = 0x0C;
@@ -266,6 +320,14 @@ class MixerStrip {
         this.color = newColor;
         this.containerElement.dataset.colorId = newColor;
     }
+    updateMeter(newPeak, newSignal = false, newClip = false, index = 0){
+        let meter = this.meterElements[index];
+        if(meter){
+            meter.value = newPeak;
+            meter.dataset.signal = newSignal;
+            meter.dataset.clip = newClip;
+        }
+    }
 
 }
 class Controller {
@@ -357,11 +419,11 @@ class Controller {
             else this.label.innerText = this.value;
         } 
     }
-    writeValue(value, source = "local"){
+    writeValue(value, source = "local", force = false){
         this.updateValue(value, source);
         if(app.connectivity.wsConnected && source != "ws"){
             const now = Date.now();
-            if(now - (this._lastWsSend || 0) >= 200){
+            if(force || (now - (this._lastWsSend || 0) >= 200)){
                 this._lastWsSend = now;
                 app.wsSend({type:'control', id: this.id, value: Number(this.value)});
             }
@@ -392,7 +454,7 @@ class Controller {
                 element.addEventListener("change", function(e){
                     let control = controls.map[this.dataset.controlId];
                     control._lastWsSend = 0;
-                    control.writeValue(e.target.value);
+                    control.writeValue(e.target.value, "local", true);
                 });
                 break;
             case "toggle":
@@ -606,6 +668,12 @@ function formatNumber(number){
         let multiplier = Math.pow(10, i * 3);
         let newNumber = number / multiplier;
         if(newNumber < 1000) return newNumber + SUFFIXES[i];
+    }
+}
+function updateMeters(channelPeak, channelSignal, channelClip){
+    for(let bus_id in buses){
+        let bus = buses[bus_id];
+        bus.updateMeters(channelPeak, channelSignal, channelClip);
     }
 }
 

@@ -114,6 +114,21 @@ app.wsSendFullState = function(){
     }
     app.wsSend(message);
 }
+app.wsSendMeter = function(channelPeak, channelSignal, channelClip){
+    // Rate limit to 2 Hz
+    if(!app.lastMeterSendTime) app.lastMeterSendTime = 0;
+    let now = Date.now();
+    if(now - app.lastMeterSendTime < 500) return;
+    app.lastMeterSendTime = now;
+
+    let message = {
+        type: "meter",
+        peaks: channelPeak,
+        signal: channelSignal,
+        clip: channelClip,
+    }
+    app.wsSend(message);
+}
 
 app.handleWsMessage = function(event){
     try{
@@ -142,10 +157,8 @@ app.handleWsMessage = function(event){
             if(Array.isArray(message.peers)){
                 app.updatePeersUI(message.peers);
             }
-        } else if(message.type == 'peak'){
-            for(let strip_id in message.strips){
-                let strip = strips[strip_id];
-            }
+        } else if(message.type == 'meter'){
+            updateMeters(message.peaks, message.signal, message.clip);
         }
     } catch(e){
         app.log('WS message parse error: ' + e);

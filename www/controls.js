@@ -89,7 +89,10 @@ class MixerStrip {
         this.labelElement.addEventListener("click", openInspector);
         this.containerElement.appendChild(this.labelElement);
 
-        if(this.bus.id == "master"){
+        // Input channel peak levels are pre-fader (shared across buses), so
+        // show meters for channel strips on every bus tab, not just Master.
+        let showsMeter = this.bus.id == "master" || Number.isInteger(this.channel);
+        if(showsMeter){
             let meterRow = document.createElement("div");
             meterRow.classList.add("meter-row");
 

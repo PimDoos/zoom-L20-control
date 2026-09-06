@@ -49,6 +49,23 @@ app.setStatus = function(kind, status){
         setControlsEnabled(false);
     }
 }
+app.armUnmutedChannels = function(){
+    let bus = buses['master'];
+    if(!bus) return;
+    let armed = 0;
+    for(let strip_id in bus.strips){
+        let strip = bus.strips[strip_id];
+        // Only arm actual input channels, not the bus's own master strip or EFX returns.
+        if(!Number.isInteger(strip.channel)) continue;
+        if(!strip.recordController || !strip.muteController) continue;
+        if(strip.muteController.value == 0){
+            strip.recordController.writeValue(2);
+            armed++;
+        }
+    }
+    app.log(`Armed ${armed} unmuted channel(s) for recording`);
+}
+
 app.setRole = function(role){
     app.role = role;
     if(app.ws){
@@ -445,6 +462,13 @@ app.load = function(){
     if(patchRequestButton){
         patchRequestButton.addEventListener("click", (e)=>{
             midi.commands.patch_request();
+        });
+    }
+
+    let armUnmutedButton = document.getElementById("arm_unmuted");
+    if(armUnmutedButton){
+        armUnmutedButton.addEventListener("click", (e)=>{
+            app.armUnmutedChannels();
         });
     }
 

@@ -11,6 +11,7 @@ var app = {
         roomId: document.getElementById("room_id"),
         nick: document.getElementById("nick"),
         color: document.getElementById("color"),
+        enablePeaks: document.getElementById('peaks_enabled'),
         peers: document.getElementById("peers"),
     },
     bleMidi: {},
@@ -410,6 +411,10 @@ app.load = function(){
         const savedNick = localStorage.getItem('nick');
         const savedColor = localStorage.getItem('color');
         const savedRoom = localStorage.getItem('room');
+        const savedPeaksEnabled = localStorage.getItem('peaksEnabled');
+        if(app.elements.enablePeaks && savedPeaksEnabled){
+            app.peaksEnabled = savedPeaksEnabled === 'true';
+        }
         if(app.elements.roomId && savedRoom){
             app.roomId = savedRoom;
         }
@@ -459,10 +464,11 @@ app.load = function(){
         });
     }
 
-    let peaksEnabledCheckbox = document.getElementById('peaks_enabled');
-    if(peaksEnabledCheckbox){
-        peaksEnabledCheckbox.addEventListener('change', (e)=>{
+    if(app.elements.enablePeaks){
+        app.elements.enablePeaks.checked = app.peaksEnabled;
+        app.elements.enablePeaks.addEventListener('change', (e)=>{
             app.peaksEnabled = e.target.checked;
+            try{ localStorage.setItem('peaksEnabled', app.peaksEnabled); }catch(_){}
             if(!app.peaksEnabled){
                 midi.commands.peaks_stop();
             } else {

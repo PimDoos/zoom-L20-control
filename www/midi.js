@@ -140,10 +140,11 @@ midi.handleMessage = function(message){
 
                 // Channel peaks are pre-fader, so the same reading applies to
                 // that channel's strip on every bus tab, not just Master.
-                for(let i = 1; i <= 20; i++){
-                    for(let bus_id in buses){
-                        bus = buses[bus_id];
-                        
+                
+                for(let bus_id in buses){
+                    bus = buses[bus_id];
+
+                    for(let i = 1; i <= 20; i++){
                         strip = bus.strips[`${bus_id}_channel_${i}`];
                         if(!strip) continue;
                         
@@ -164,11 +165,8 @@ midi.handleMessage = function(message){
                             }
                         }
                     }
-                }
-                for(let i = 21; i <= 24; i++){
-                    let efx_num = Math.round((i - 20) / 2);
-                    for(let bus_id in buses){
-                        bus = buses[bus_id];
+                    for(let i = 21; i <= 24; i++){
+                        let efx_num = Math.round((i - 20) / 2);
                         strip = bus.strips[`${bus_id}_efx_${efx_num}`];
                         if(!strip) continue;
 
@@ -180,6 +178,7 @@ midi.handleMessage = function(message){
                         }
                     }
                 }
+                
                 for(let i = 49; i <= 50; i++){
                     let meterElement = buses.master.strips.master.meterElements[i - 49];
                     if(meterElement){
